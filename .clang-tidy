@@ -1,0 +1,63 @@
+Checks: >
+    *,
+    -llvmlibc-*,
+    -fuchsia-*,
+    -altera-*,
+    -abseil-*,
+    -android-*,
+    -zircon-*,
+    -objc-*,
+    -google-objc-*,
+    -llvm-header-guard,
+    -llvm-prefer-static-over-anonymous-namespace,
+    -modernize-use-trailing-return-type,
+    -misc-include-cleaner,
+    -bugprone-exception-escape,
+    -bugprone-easily-swappable-parameters,
+    -cppcoreguidelines-avoid-non-const-global-variables,
+    -cppcoreguidelines-pro-type-vararg,
+    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+    -cppcoreguidelines-pro-bounds-constant-array-index,
+    -modernize-use-designated-initializers,
+    -hicpp-vararg,
+    -hicpp-signed-bitwise,
+    -hicpp-no-array-decay,
+    -concurrency-mt-unsafe
+
+WarningsAsErrors: '*'
+
+CheckOptions:
+    - key: readability-identifier-naming.ClassCase
+      value: CamelCase
+    - key: readability-identifier-naming.FunctionCase
+      value: lower_case
+    - key: readability-identifier-naming.VariableCase
+      value: lower_case
+    - key: readability-identifier-naming.LocalConstantCase
+      value: lower_case
+    - key: readability-identifier-naming.PrivateMemberSuffix
+      value: _
+    - key: readability-identifier-naming.ConstexprVariableCase
+      value: UPPER_CASE
+    - key: readability-identifier-naming.GlobalConstantCase
+      value: UPPER_CASE
+    - key: readability-identifier-naming.StaticConstantCase
+      value: UPPER_CASE
+    - key: readability-identifier-naming.EnumConstantCase
+      value: UPPER_CASE
+    - key: readability-identifier-naming.NamespaceCase
+      value: lower_case
+    - key: readability-identifier-naming.GlobalVariablePrefix
+      value: g_
+    - key: readability-identifier-length.MinimumVariableNameLength
+      value: 2
+    - key: readability-identifier-length.MinimumParameterNameLength
+      value: 2
+    - key: readability-function-cognitive-complexity.Threshold
+      value: 50
+    - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+      value: true
+    - key: cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+      value: '0;1;2;3;4;5;6;7;8;9;10;11;16;100;128;255;256'
+    - key: readability-magic-numbers.IgnoredIntegerValues
+      value: '0;1;2;3;4;5;6;7;8;9;10;11;16;100;128;255;256'
