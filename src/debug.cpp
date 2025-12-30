@@ -1,148 +1,250 @@
 #include "vader5/hidraw.hpp"
+#include "vader5/transport.hpp"
 #include "vader5/types.hpp"
 
-#include <poll.h>
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/dom/elements.hpp>
 
 #include <array>
+#include <atomic>
 #include <cstdlib>
-#include <print>
+#include <mutex>
+#include <thread>
 
 namespace {
-constexpr size_t READ_BUFFER_SIZE = 64;
-constexpr int POLL_TIMEOUT_MS = 100;
-constexpr int GAMEPAD_INTERFACE = 2;
+using ftxui::bgcolor;
+using ftxui::border;
+using ftxui::bold;
+using ftxui::center;
+using ftxui::CatchEvent;
+using ftxui::Color;
+using ftxui::color;
+using ftxui::dim;
+using ftxui::Element;
+using ftxui::EQUAL;
+using ftxui::Event;
+using ftxui::gaugeRight;
+using ftxui::hbox;
+using ftxui::inverted;
+using ftxui::Renderer;
+using ftxui::ScreenInteractive;
+using ftxui::size;
+using ftxui::text;
+using ftxui::vbox;
+using ftxui::WIDTH;
 
-void print_state(const vader5::GamepadState& st) {
-    std::print("\033[2J\033[H");
-    std::println("=== Vader 5 Pro Debug ===\n");
+constexpr size_t READ_BUFFER_SIZE = 32;
+constexpr int READ_TIMEOUT_MS = 16;
+constexpr uint8_t IFACE_INPUT = 0;
+constexpr int TRIGGER_BAR_WIDTH = 15;
+constexpr uint8_t EP_INPUT = 0x01;
 
-    std::println("Sticks:");
-    std::println("  Left:  X={:6}  Y={:6}", st.left_x, st.left_y);
-    std::println("  Right: X={:6}  Y={:6}\n", st.right_x, st.right_y);
+std::atomic<bool> g_running{true};
+vader5::GamepadState g_state{};
+std::mutex g_mutex;
 
-    std::println("Triggers:");
-    std::println("  LT={:3}  RT={:3}\n", st.left_trigger, st.right_trigger);
+Element render_stick(const std::string& name, int16_t pos_x, int16_t pos_y, bool pressed) {
+    constexpr int RANGE = 32767;
+    constexpr int SIZE = 9;
+    const int cx = (pos_x + RANGE) * (SIZE - 1) / (2 * RANGE);
+    const int cy = (pos_y + RANGE) * (SIZE - 1) / (2 * RANGE);
 
-    std::print("D-Pad: ");
-    switch (st.dpad) {
-    case vader5::DPAD_UP:
-        std::print("UP");
-        break;
-    case vader5::DPAD_UP_RIGHT:
-        std::print("UP+RIGHT");
-        break;
-    case vader5::DPAD_RIGHT:
-        std::print("RIGHT");
-        break;
-    case vader5::DPAD_DOWN_RIGHT:
-        std::print("DOWN+RIGHT");
-        break;
-    case vader5::DPAD_DOWN:
-        std::print("DOWN");
-        break;
-    case vader5::DPAD_DOWN_LEFT:
-        std::print("DOWN+LEFT");
-        break;
-    case vader5::DPAD_LEFT:
-        std::print("LEFT");
-        break;
-    case vader5::DPAD_UP_LEFT:
-        std::print("UP+LEFT");
-        break;
-    default:
-        std::print("-");
-        break;
+    std::vector<Element> rows;
+    for (int row = 0; row < SIZE; ++row) {
+        std::string line;
+        for (int col = 0; col < SIZE; ++col) {
+            if (row == cy && col == cx) {
+                line += "●";
+            } else if (row == SIZE / 2 && col == SIZE / 2) {
+                line += "┼";
+            } else if (row == SIZE / 2) {
+                line += "─";
+            } else if (col == SIZE / 2) {
+                line += "│";
+            } else {
+                line += " ";
+            }
+        }
+        rows.push_back(text(line));
     }
-    std::println("\n");
 
-    std::print("Buttons: ");
-    if ((st.buttons & vader5::BTN_A) != 0) {
-        std::print("A ");
+    auto stick_box = vbox(rows) | border;
+    if (pressed) {
+        stick_box = stick_box | bgcolor(Color::Blue);
     }
-    if ((st.buttons & vader5::BTN_B) != 0) {
-        std::print("B ");
-    }
-    if ((st.buttons & vader5::BTN_X) != 0) {
-        std::print("X ");
-    }
-    if ((st.buttons & vader5::BTN_Y) != 0) {
-        std::print("Y ");
-    }
-    if ((st.buttons & vader5::BTN_LB) != 0) {
-        std::print("LB ");
-    }
-    if ((st.buttons & vader5::BTN_RB) != 0) {
-        std::print("RB ");
-    }
-    if ((st.buttons & vader5::BTN_SELECT) != 0) {
-        std::print("SELECT ");
-    }
-    if ((st.buttons & vader5::BTN_START) != 0) {
-        std::print("START ");
-    }
-    if ((st.buttons & vader5::BTN_MODE) != 0) {
-        std::print("MODE ");
-    }
-    if ((st.buttons & vader5::BTN_L3) != 0) {
-        std::print("L3 ");
-    }
-    if ((st.buttons & vader5::BTN_R3) != 0) {
-        std::print("R3 ");
-    }
-    std::println("\n");
 
-    std::print("Extended: ");
-    if ((st.ext_buttons & vader5::EXT_C) != 0) {
-        std::print("C ");
-    }
-    if ((st.ext_buttons & vader5::EXT_Z) != 0) {
-        std::print("Z ");
-    }
-    if ((st.ext_buttons & vader5::EXT_M1) != 0) {
-        std::print("M1 ");
-    }
-    if ((st.ext_buttons & vader5::EXT_M2) != 0) {
-        std::print("M2 ");
-    }
-    if ((st.ext_buttons & vader5::EXT_M3) != 0) {
-        std::print("M3 ");
-    }
-    if ((st.ext_buttons & vader5::EXT_M4) != 0) {
-        std::print("M4 ");
-    }
-    if ((st.ext_buttons & vader5::EXT_CIRCLE) != 0) {
-        std::print("CIRCLE ");
-    }
-    if ((st.ext_buttons & vader5::EXT_HOME) != 0) {
-        std::print("HOME ");
-    }
-    std::println("\n");
+    return vbox({
+        text(name) | bold | center,
+        stick_box,
+        text("X:" + std::to_string(pos_x)) | dim | center,
+        text("Y:" + std::to_string(pos_y)) | dim | center,
+    });
+}
 
-    std::println("Press Ctrl+C to exit");
+Element render_trigger(const std::string& name, uint8_t value) {
+    const float ratio = static_cast<float>(value) / 255.0F;
+    return hbox({
+        text(name + " ") | bold,
+        gaugeRight(ratio) | size(WIDTH, EQUAL, TRIGGER_BAR_WIDTH) | color(Color::Green),
+        text(" " + std::to_string(value)),
+    });
+}
+
+Element render_dpad(uint8_t dpad) {
+    auto cell = [&](uint8_t check, const std::string& label) -> Element {
+        const bool active = (dpad == check);
+        auto elem = text(label) | center;
+        return active ? (elem | inverted) : elem;
+    };
+
+    return vbox({
+        text("D-Pad") | bold | center,
+        vbox({
+            hbox({text("   "), cell(vader5::DPAD_UP, " ↑ "), text("   ")}),
+            hbox({cell(vader5::DPAD_LEFT, " ← "), text("   "), cell(vader5::DPAD_RIGHT, " → ")}),
+            hbox({text("   "), cell(vader5::DPAD_DOWN, " ↓ "), text("   ")}),
+        }) | border,
+    });
+}
+
+Element render_face_buttons(uint16_t buttons) {
+    auto btn = [&](uint16_t mask, const std::string& label, Color col) -> Element {
+        const bool pressed = (buttons & mask) != 0;
+        auto elem = text(label) | center;
+        if (pressed) {
+            return elem | bgcolor(col) | color(Color::White);
+        }
+        return elem | dim;
+    };
+
+    return vbox({
+        text("Buttons") | bold | center,
+        vbox({
+            hbox({text("   "), btn(vader5::BTN_Y, " Y ", Color::Yellow), text("   ")}),
+            hbox({btn(vader5::BTN_X, " X ", Color::Blue), text("   "),
+                  btn(vader5::BTN_B, " B ", Color::Red)}),
+            hbox({text("   "), btn(vader5::BTN_A, " A ", Color::Green), text("   ")}),
+        }) | border,
+    });
+}
+
+Element render_shoulder_buttons(uint16_t buttons, uint8_t lt, uint8_t rt) {
+    auto btn = [&](uint16_t mask, const std::string& label) -> Element {
+        const bool pressed = (buttons & mask) != 0;
+        auto elem = text(label);
+        return pressed ? (elem | inverted) : elem;
+    };
+
+    return hbox({
+        vbox({
+            btn(vader5::BTN_LB, " LB "),
+            render_trigger("LT", lt),
+        }),
+        text("     "),
+        vbox({
+            btn(vader5::BTN_RB, " RB "),
+            render_trigger("RT", rt),
+        }),
+    });
+}
+
+Element render_center_buttons(uint16_t buttons) {
+    auto btn = [&](uint16_t mask, const std::string& label) -> Element {
+        const bool pressed = (buttons & mask) != 0;
+        auto elem = text(label);
+        return pressed ? (elem | inverted | bold) : (elem | dim);
+    };
+
+    return hbox({
+        btn(vader5::BTN_SELECT, " SELECT "),
+        text("  "),
+        btn(vader5::BTN_MODE, " MODE "),
+        text("  "),
+        btn(vader5::BTN_START, " START "),
+    });
+}
+
+void input_thread(vader5::UsbTransport& usb) {
+    try {
+        std::array<uint8_t, READ_BUFFER_SIZE> buf{};
+        while (g_running.load()) {
+            auto bytes = usb.read(buf, READ_TIMEOUT_MS);
+            if (bytes && *bytes > 0) {
+                auto state = vader5::Hidraw::parse_report({buf.data(), *bytes});
+                if (state) {
+                    const std::scoped_lock lock(g_mutex);
+                    g_state = *state;
+                }
+            }
+        }
+    } catch (...) {
+        g_running.store(false);
+    }
 }
 } // namespace
 
 auto main() -> int {
-    auto hid = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, GAMEPAD_INTERFACE);
-    if (!hid) {
-        std::println(stderr, "Failed to open device: {}", hid.error().message());
+    auto usb = vader5::UsbTransport::open(vader5::VENDOR_ID, vader5::PRODUCT_ID,
+                                          IFACE_INPUT, EP_INPUT);
+    if (!usb) {
         return EXIT_FAILURE;
     }
 
-    std::println("Device opened. Reading input...");
+    std::thread reader(input_thread, std::ref(*usb));
+    auto screen = ScreenInteractive::Fullscreen();
 
-    pollfd pfd{.fd = hid->fd(), .events = POLLIN, .revents = 0};
-    std::array<uint8_t, READ_BUFFER_SIZE> buf{};
-
-    while (true) {
-        if (poll(&pfd, 1, POLL_TIMEOUT_MS) > 0) {
-            auto bytes = hid->read(buf);
-            if (bytes && *bytes > 0) {
-                auto state = vader5::Hidraw::parse_report({buf.data(), *bytes});
-                if (state) {
-                    print_state(*state);
-                }
-            }
+    auto renderer = Renderer([&] {
+        vader5::GamepadState st;
+        {
+            const std::scoped_lock lock(g_mutex);
+            st = g_state;
         }
-    }
+
+        const bool l3 = (st.buttons & vader5::BTN_L3) != 0;
+        const bool r3 = (st.buttons & vader5::BTN_R3) != 0;
+
+        return vbox({
+            text("═══ Vader 5 Pro Debug ═══") | bold | center,
+            text(""),
+            render_shoulder_buttons(st.buttons, st.left_trigger, st.right_trigger) | center,
+            text(""),
+            render_center_buttons(st.buttons) | center,
+            text(""),
+            hbox({
+                render_stick("L Stick", st.left_x, st.left_y, l3),
+                text("    "),
+                render_dpad(st.dpad),
+                text("    "),
+                render_face_buttons(st.buttons),
+                text("    "),
+                render_stick("R Stick", st.right_x, st.right_y, r3),
+            }) | center,
+            text(""),
+            text("Press Q to quit") | dim | center,
+        }) | border | center;
+    });
+
+    auto component = CatchEvent(renderer, [&](const Event& event) {
+        if (event == Event::Character('q') || event == Event::Character('Q')) {
+            g_running.store(false);
+            screen.Exit();
+            return true;
+        }
+        return false;
+    });
+
+    std::thread refresh([&] {
+        while (g_running.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            screen.PostEvent(Event::Custom);
+        }
+    });
+
+    screen.Loop(component);
+
+    g_running.store(false);
+    refresh.join();
+    reader.join();
+    return 0;
 }

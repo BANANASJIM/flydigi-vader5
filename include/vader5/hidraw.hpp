@@ -26,6 +26,9 @@ public:
 private:
     explicit Hidraw(int file_descriptor) : fd_(file_descriptor) {}
     int fd_{-1};
+
+    [[nodiscard]] static auto parse_report_24g(std::span<const uint8_t> data)
+        -> std::optional<GamepadState>;
 };
 
 auto find_hidraw_device(uint16_t vid, uint16_t pid, int iface) -> Result<std::string>;
