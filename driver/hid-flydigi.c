@@ -9,16 +9,16 @@
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <linux/slab.h>
+#include <linux/unaligned.h>
 
 #define VENDOR_FLYDIGI		0x37d7
 #define DEVICE_VADER5_24G	0x2401
 
-#define INTF_CLASS_VENDOR	0xff
+#define INTF_CLASS_XBOX		0xff
 #define INTF_SUBCLASS_XBOX	0x5d
-#define INTF_PROTOCOL		0x01
 
-#define EP_IN_ADDR		0x81
 #define PKT_SIZE		32
+#define PKT_MIN_LEN		14
 
 #define AXIS_MAX		32767
 #define AXIS_MIN		(-32768)
@@ -34,30 +34,29 @@ struct flydigi_data {
 	char phys[64];
 };
 
-static void flydigi_parse(struct flydigi_data *fd, unsigned char *data)
+static void flydigi_parse(struct flydigi_data *fd, const u8 *data)
 {
 	struct input_dev *input = fd->input;
+	u8 dpad = data[2];
+	u8 buttons = data[3];
 	int hat_x = 0, hat_y = 0;
 
-	/* Xbox-like format: data starts at offset 0 */
-	u8 misc = data[2];
-	u8 buttons = data[3];
-
-	if (misc & 0x01)
+	if (dpad & 0x01)
 		hat_y = -1;
-	if (misc & 0x02)
+	if (dpad & 0x02)
 		hat_y = 1;
-	if (misc & 0x04)
+	if (dpad & 0x04)
 		hat_x = -1;
-	if (misc & 0x08)
+	if (dpad & 0x08)
 		hat_x = 1;
+
 	input_report_abs(input, ABS_HAT0X, hat_x);
 	input_report_abs(input, ABS_HAT0Y, hat_y);
 
-	input_report_key(input, BTN_START, misc & 0x10);
-	input_report_key(input, BTN_SELECT, misc & 0x20);
-	input_report_key(input, BTN_THUMBL, misc & 0x40);
-	input_report_key(input, BTN_THUMBR, misc & 0x80);
+	input_report_key(input, BTN_START, dpad & 0x10);
+	input_report_key(input, BTN_SELECT, dpad & 0x20);
+	input_report_key(input, BTN_THUMBL, dpad & 0x40);
+	input_report_key(input, BTN_THUMBR, dpad & 0x80);
 
 	input_report_key(input, BTN_TL, buttons & 0x01);
 	input_report_key(input, BTN_TR, buttons & 0x02);
@@ -70,10 +69,10 @@ static void flydigi_parse(struct flydigi_data *fd, unsigned char *data)
 	input_report_abs(input, ABS_Z, data[4]);
 	input_report_abs(input, ABS_RZ, data[5]);
 
-	input_report_abs(input, ABS_X, (s16)(data[6] | (data[7] << 8)));
-	input_report_abs(input, ABS_Y, -(s16)(data[8] | (data[9] << 8)));
-	input_report_abs(input, ABS_RX, (s16)(data[10] | (data[11] << 8)));
-	input_report_abs(input, ABS_RY, -(s16)(data[12] | (data[13] << 8)));
+	input_report_abs(input, ABS_X, (s16)get_unaligned_le16(&data[6]));
+	input_report_abs(input, ABS_Y, -(s16)get_unaligned_le16(&data[8]));
+	input_report_abs(input, ABS_RX, (s16)get_unaligned_le16(&data[10]));
+	input_report_abs(input, ABS_RY, -(s16)get_unaligned_le16(&data[12]));
 
 	input_sync(input);
 }
@@ -94,11 +93,8 @@ static void flydigi_irq_in(struct urb *urb)
 		goto resubmit;
 	}
 
-	if (urb->actual_length >= 14) {
-		printk_ratelimited(KERN_INFO "flydigi: len=%d [0]=0x%02x [1]=0x%02x\n",
-			urb->actual_length, fd->idata[0], fd->idata[1]);
+	if (urb->actual_length >= PKT_MIN_LEN)
 		flydigi_parse(fd, fd->idata);
-	}
 
 resubmit:
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
@@ -110,10 +106,7 @@ static int flydigi_open(struct input_dev *dev)
 {
 	struct flydigi_data *fd = input_get_drvdata(dev);
 
-	fd->irq_in->dev = fd->udev;
-	if (usb_submit_urb(fd->irq_in, GFP_KERNEL))
-		return -EIO;
-	return 0;
+	return usb_submit_urb(fd->irq_in, GFP_KERNEL) ? -EIO : 0;
 }
 
 static void flydigi_close(struct input_dev *dev)
@@ -126,29 +119,28 @@ static void flydigi_close(struct input_dev *dev)
 static int flydigi_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
+	struct usb_interface_descriptor *idesc = &intf->cur_altsetting->desc;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_endpoint_descriptor *ep_in = NULL;
 	struct flydigi_data *fd;
 	struct input_dev *input;
-	struct usb_endpoint_descriptor *ep;
 	int i, ret;
 
-	dev_info(&intf->dev, "probe: interface %d\n",
-		 intf->cur_altsetting->desc.bInterfaceNumber);
+	if (idesc->bInterfaceClass != INTF_CLASS_XBOX ||
+	    idesc->bInterfaceSubClass != INTF_SUBCLASS_XBOX)
+		return -ENODEV;
 
-	/* Find EP1 IN */
-	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
+	for (i = 0; i < idesc->bNumEndpoints; i++) {
+		struct usb_endpoint_descriptor *ep;
+
 		ep = &intf->cur_altsetting->endpoint[i].desc;
-		if (usb_endpoint_is_int_in(ep) &&
-		    usb_endpoint_num(ep) == 1) {
+		if (usb_endpoint_is_int_in(ep)) {
 			ep_in = ep;
 			break;
 		}
 	}
-	if (!ep_in) {
-		dev_err(&intf->dev, "EP1 IN not found\n");
+	if (!ep_in)
 		return -ENODEV;
-	}
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 	if (!fd)
@@ -246,10 +238,9 @@ static void flydigi_disconnect(struct usb_interface *intf)
 {
 	struct flydigi_data *fd = usb_get_intfdata(intf);
 
-	dev_info(&intf->dev, "disconnecting\n");
-
 	usb_set_intfdata(intf, NULL);
 	if (fd) {
+		usb_kill_urb(fd->irq_in);
 		input_unregister_device(fd->input);
 		usb_free_urb(fd->irq_in);
 		usb_free_coherent(fd->udev, PKT_SIZE, fd->idata, fd->idata_dma);
@@ -258,7 +249,7 @@ static void flydigi_disconnect(struct usb_interface *intf)
 }
 
 static const struct usb_device_id flydigi_devices[] = {
-	{ USB_DEVICE_INTERFACE_PROTOCOL(VENDOR_FLYDIGI, DEVICE_VADER5_24G, INTF_PROTOCOL) },
+	{ USB_DEVICE(VENDOR_FLYDIGI, DEVICE_VADER5_24G) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, flydigi_devices);
