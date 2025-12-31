@@ -21,6 +21,8 @@ public:
     auto operator=(const UsbTransport&) -> UsbTransport& = delete;
 
     [[nodiscard]] auto read(std::span<uint8_t> buf, int timeout_ms = 1000) -> Result<size_t>;
+    [[nodiscard]] auto write(std::span<const uint8_t> buf, uint8_t ep_out, int timeout_ms = 1000)
+        -> Result<size_t>;
     [[nodiscard]] auto is_open() const noexcept -> bool;
 
 private:

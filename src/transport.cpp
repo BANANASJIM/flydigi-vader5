@@ -1,5 +1,7 @@
 #include "vader5/transport.hpp"
 
+#include <vector>
+
 namespace vader5 {
 
 UsbTransport::UsbTransport(libusb_context* ctx, libusb_device_handle* handle,
@@ -72,6 +74,23 @@ auto UsbTransport::read(std::span<uint8_t> buf, int timeout_ms) -> Result<size_t
     const int ret = libusb_interrupt_transfer(handle_, endpoint_ | LIBUSB_ENDPOINT_IN,
                                         buf.data(), static_cast<int>(buf.size()),
                                         &transferred, timeout_ms);
+    if (ret == LIBUSB_ERROR_TIMEOUT) {
+        return 0;
+    }
+    if (ret != 0) {
+        return std::unexpected(std::make_error_code(std::errc::io_error));
+    }
+    return static_cast<size_t>(transferred);
+}
+
+auto UsbTransport::write(std::span<const uint8_t> buf, uint8_t ep_out, int timeout_ms)
+    -> Result<size_t> {
+    std::vector<uint8_t> mutable_buf(buf.begin(), buf.end());
+    int transferred = 0;
+    const int ret = libusb_interrupt_transfer(
+        handle_, ep_out | LIBUSB_ENDPOINT_OUT,
+        mutable_buf.data(), static_cast<int>(mutable_buf.size()),
+        &transferred, timeout_ms);
     if (ret == LIBUSB_ERROR_TIMEOUT) {
         return 0;
     }

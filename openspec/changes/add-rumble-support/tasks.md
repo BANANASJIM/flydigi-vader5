@@ -1,16 +1,17 @@
 ## Tasks
 
-### 1. Research
-- [ ] 1.1 用 vader5-debug 测试 Xbox 格式 (EP5 OUT)
-- [ ] 1.2 用 vader5-debug 测试 Flydigi 格式 (EP6 OUT)
-- [ ] 1.3 确认两种格式的马达响应差异
+### 1. Userspace Testing
+- [x] 1.1 Add UsbTransport::write()
+- [x] 1.2 Add rumble test in debug TUI
+- [x] 1.3 Test Xbox 360 format (EP5 OUT) - works
+- [x] 1.4 Test Xbox One format - NOT supported by controller
 
-### 2. Implementation
-- [ ] 2.1 Add output URB and buffer allocation
-- [ ] 2.2 Find EP5 OUT in probe()
-- [ ] 2.3 Register FF_RUMBLE effect
-- [ ] 2.4 Implement ff_play callback
-- [ ] 2.5 Add work queue for rumble packets
+### 2. Driver Implementation
+- [x] 2.1 Add output URB and buffer allocation
+- [x] 2.2 Find EP5 OUT in probe()
+- [x] 2.3 Register FF_RUMBLE effect
+- [x] 2.4 Implement ff_play callback
+- [x] 2.5 Add work queue for rumble packets
 
 ### 3. Testing
 - [ ] 3.1 Test with fftest

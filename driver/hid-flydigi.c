@@ -10,6 +10,7 @@
 #include <linux/usb/input.h>
 #include <linux/slab.h>
 #include <linux/unaligned.h>
+#include <linux/workqueue.h>
 
 #define VENDOR_FLYDIGI		0x37d7
 #define DEVICE_VADER5_24G	0x2401
@@ -19,18 +20,29 @@
 
 #define PKT_SIZE		32
 #define PKT_MIN_LEN		14
+#define RUMBLE_PKT_SIZE		8
 
 #define AXIS_MAX		32767
 #define AXIS_MIN		(-32768)
 #define TRIGGER_MAX		255
+
+#define RUMBLE_CMD		0x08
 
 struct flydigi_data {
 	struct input_dev *input;
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	struct urb *irq_in;
+	struct urb *irq_out;
 	unsigned char *idata;
+	unsigned char *odata;
 	dma_addr_t idata_dma;
+	dma_addr_t odata_dma;
+	struct work_struct rumble_work;
+	u8 rumble_left;
+	u8 rumble_right;
+	bool rumble_pending;
+	spinlock_t lock;
 	char phys[64];
 };
 
@@ -116,12 +128,80 @@ static void flydigi_close(struct input_dev *dev)
 	usb_kill_urb(fd->irq_in);
 }
 
+static void flydigi_irq_out(struct urb *urb)
+{
+	struct flydigi_data *fd = urb->context;
+	unsigned long flags;
+
+	switch (urb->status) {
+	case 0:
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		break;
+	default:
+		dev_dbg(&fd->intf->dev, "rumble urb status: %d\n", urb->status);
+	}
+
+	spin_lock_irqsave(&fd->lock, flags);
+	if (fd->rumble_pending)
+		schedule_work(&fd->rumble_work);
+	spin_unlock_irqrestore(&fd->lock, flags);
+}
+
+static void flydigi_rumble_work(struct work_struct *work)
+{
+	struct flydigi_data *fd = container_of(work, struct flydigi_data, rumble_work);
+	unsigned long flags;
+	u8 left, right;
+	int ret;
+
+	spin_lock_irqsave(&fd->lock, flags);
+	left = fd->rumble_left;
+	right = fd->rumble_right;
+	fd->rumble_pending = false;
+	spin_unlock_irqrestore(&fd->lock, flags);
+
+	fd->odata[0] = 0x00;
+	fd->odata[1] = RUMBLE_CMD;
+	fd->odata[2] = 0x00;
+	fd->odata[3] = left;
+	fd->odata[4] = right;
+	fd->odata[5] = 0x00;
+	fd->odata[6] = 0x00;
+	fd->odata[7] = 0x00;
+
+	ret = usb_submit_urb(fd->irq_out, GFP_KERNEL);
+	if (ret)
+		dev_dbg(&fd->intf->dev, "rumble urb submit failed: %d\n", ret);
+}
+
+static int flydigi_ff_play(struct input_dev *dev, void *data,
+			   struct ff_effect *effect)
+{
+	struct flydigi_data *fd = input_get_drvdata(dev);
+	unsigned long flags;
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	spin_lock_irqsave(&fd->lock, flags);
+	fd->rumble_left = effect->u.rumble.strong_magnitude >> 8;
+	fd->rumble_right = effect->u.rumble.weak_magnitude >> 8;
+	fd->rumble_pending = true;
+	spin_unlock_irqrestore(&fd->lock, flags);
+
+	schedule_work(&fd->rumble_work);
+	return 0;
+}
+
 static int flydigi_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 	struct usb_interface_descriptor *idesc = &intf->cur_altsetting->desc;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_endpoint_descriptor *ep_in = NULL;
+	struct usb_endpoint_descriptor *ep_out = NULL;
 	struct flydigi_data *fd;
 	struct input_dev *input;
 	int i, ret;
@@ -134,10 +214,10 @@ static int flydigi_probe(struct usb_interface *intf,
 		struct usb_endpoint_descriptor *ep;
 
 		ep = &intf->cur_altsetting->endpoint[i].desc;
-		if (usb_endpoint_is_int_in(ep)) {
+		if (usb_endpoint_is_int_in(ep) && !ep_in)
 			ep_in = ep;
-			break;
-		}
+		else if (usb_endpoint_is_int_out(ep) && !ep_out)
+			ep_out = ep;
 	}
 	if (!ep_in)
 		return -ENODEV;
@@ -145,6 +225,9 @@ static int flydigi_probe(struct usb_interface *intf,
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 	if (!fd)
 		return -ENOMEM;
+
+	spin_lock_init(&fd->lock);
+	INIT_WORK(&fd->rumble_work, flydigi_rumble_work);
 
 	fd->idata = usb_alloc_coherent(udev, PKT_SIZE, GFP_KERNEL, &fd->idata_dma);
 	if (!fd->idata) {
@@ -158,10 +241,25 @@ static int flydigi_probe(struct usb_interface *intf,
 		goto err_free_idata;
 	}
 
+	if (ep_out) {
+		fd->odata = usb_alloc_coherent(udev, RUMBLE_PKT_SIZE, GFP_KERNEL,
+					       &fd->odata_dma);
+		if (!fd->odata) {
+			ret = -ENOMEM;
+			goto err_free_urb_in;
+		}
+
+		fd->irq_out = usb_alloc_urb(0, GFP_KERNEL);
+		if (!fd->irq_out) {
+			ret = -ENOMEM;
+			goto err_free_odata;
+		}
+	}
+
 	input = input_allocate_device();
 	if (!input) {
 		ret = -ENOMEM;
-		goto err_free_urb;
+		goto err_free_urb_out;
 	}
 
 	fd->udev = udev;
@@ -212,6 +310,25 @@ static int flydigi_probe(struct usb_interface *intf,
 	fd->irq_in->transfer_dma = fd->idata_dma;
 	fd->irq_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
+	if (ep_out && fd->irq_out) {
+		usb_fill_int_urb(fd->irq_out, udev,
+				 usb_sndintpipe(udev, ep_out->bEndpointAddress),
+				 fd->odata, RUMBLE_PKT_SIZE, flydigi_irq_out, fd,
+				 ep_out->bInterval);
+		fd->irq_out->transfer_dma = fd->odata_dma;
+		fd->irq_out->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+		input_set_capability(input, EV_FF, FF_RUMBLE);
+		ret = input_ff_create_memless(input, NULL, flydigi_ff_play);
+		if (ret) {
+			dev_warn(&intf->dev, "ff_create failed: %d\n", ret);
+			usb_free_urb(fd->irq_out);
+			fd->irq_out = NULL;
+			usb_free_coherent(udev, RUMBLE_PKT_SIZE, fd->odata, fd->odata_dma);
+			fd->odata = NULL;
+		}
+	}
+
 	ret = input_register_device(input);
 	if (ret) {
 		dev_err(&intf->dev, "input_register failed: %d\n", ret);
@@ -220,12 +337,18 @@ static int flydigi_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, fd);
 
-	dev_info(&intf->dev, "Vader 5 Pro initialized\n");
+	dev_info(&intf->dev, "Vader 5 Pro initialized%s\n",
+		 fd->irq_out ? " with rumble" : "");
 	return 0;
 
 err_free_input:
 	input_free_device(input);
-err_free_urb:
+err_free_urb_out:
+	usb_free_urb(fd->irq_out);
+err_free_odata:
+	if (fd->odata)
+		usb_free_coherent(udev, RUMBLE_PKT_SIZE, fd->odata, fd->odata_dma);
+err_free_urb_in:
 	usb_free_urb(fd->irq_in);
 err_free_idata:
 	usb_free_coherent(udev, PKT_SIZE, fd->idata, fd->idata_dma);
@@ -241,9 +364,17 @@ static void flydigi_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (fd) {
 		usb_kill_urb(fd->irq_in);
+		if (fd->irq_out) {
+			usb_kill_urb(fd->irq_out);
+			cancel_work_sync(&fd->rumble_work);
+		}
 		input_unregister_device(fd->input);
 		usb_free_urb(fd->irq_in);
+		usb_free_urb(fd->irq_out);
 		usb_free_coherent(fd->udev, PKT_SIZE, fd->idata, fd->idata_dma);
+		if (fd->odata)
+			usb_free_coherent(fd->udev, RUMBLE_PKT_SIZE, fd->odata,
+					  fd->odata_dma);
 		kfree(fd);
 	}
 }

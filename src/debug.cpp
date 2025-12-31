@@ -29,6 +29,7 @@ using ftxui::hbox;
 using ftxui::inverted;
 using ftxui::Renderer;
 using ftxui::ScreenInteractive;
+using ftxui::separator;
 using ftxui::size;
 using ftxui::text;
 using ftxui::vbox;
@@ -39,10 +40,23 @@ constexpr int READ_TIMEOUT_MS = 16;
 constexpr uint8_t IFACE_INPUT = 0;
 constexpr int TRIGGER_BAR_WIDTH = 15;
 constexpr uint8_t EP_INPUT = 0x01;
+constexpr uint8_t EP_OUTPUT = 0x05;
+constexpr uint8_t RUMBLE_PKT_SIZE = 8;
+constexpr uint8_t RUMBLE_CMD = 0x08;
 
 std::atomic<bool> g_running{true};
 vader5::GamepadState g_state{};
 std::mutex g_mutex;
+
+std::atomic<uint8_t> g_rumble_left{0};
+std::atomic<uint8_t> g_rumble_right{0};
+std::atomic<bool> g_rumble_changed{false};
+
+void send_rumble(vader5::UsbTransport& usb, uint8_t left, uint8_t right) {
+    std::array<uint8_t, RUMBLE_PKT_SIZE> pkt = {0x00, RUMBLE_CMD, 0x00, left, right, 0x00, 0x00, 0x00};
+    auto result = usb.write(pkt, EP_OUTPUT, READ_TIMEOUT_MS);
+    (void)result;
+}
 
 Element render_stick(const std::string& name, int16_t pos_x, int16_t pos_y, bool pressed) {
     constexpr int RANGE = 32767;
@@ -165,6 +179,22 @@ Element render_center_buttons(uint16_t buttons) {
     });
 }
 
+Element render_rumble(uint8_t left, uint8_t right) {
+    auto bar = [](const std::string& name, uint8_t val, Color col) {
+        const float ratio = static_cast<float>(val) / 255.0F;
+        return hbox({
+            text(name + ": "),
+            gaugeRight(ratio) | size(WIDTH, EQUAL, TRIGGER_BAR_WIDTH) | color(col),
+            text(" " + std::to_string(val)),
+        });
+    };
+    return vbox({
+        text("Rumble (X360)") | bold | center,
+        bar("L", left, Color::Magenta),
+        bar("R", right, Color::Cyan),
+    }) | border;
+}
+
 void input_thread(vader5::UsbTransport& usb) {
     try {
         std::array<uint8_t, READ_BUFFER_SIZE> buf{};
@@ -177,7 +207,11 @@ void input_thread(vader5::UsbTransport& usb) {
                     g_state = *state;
                 }
             }
+            if (g_rumble_changed.exchange(false)) {
+                send_rumble(usb, g_rumble_left.load(), g_rumble_right.load());
+            }
         }
+        send_rumble(usb, 0, 0);
     } catch (...) {
         g_running.store(false);
     }
@@ -203,6 +237,8 @@ auto main() -> int {
 
         const bool l3 = (st.buttons & vader5::BTN_L3) != 0;
         const bool r3 = (st.buttons & vader5::BTN_R3) != 0;
+        const uint8_t rumble_l = g_rumble_left.load();
+        const uint8_t rumble_r = g_rumble_right.load();
 
         return vbox({
             text("═══ Vader 5 Pro Debug ═══") | bold | center,
@@ -221,6 +257,10 @@ auto main() -> int {
                 render_stick("R Stick", st.right_x, st.right_y, r3),
             }) | center,
             text(""),
+            separator(),
+            render_rumble(rumble_l, rumble_r) | center,
+            text("[1-9] intensity  [Z] left  [X] right  [C] both  [0] stop") | dim | center,
+            separator(),
             text("Press Q to quit") | dim | center,
         }) | border | center;
     });
@@ -230,6 +270,41 @@ auto main() -> int {
             g_running.store(false);
             screen.Exit();
             return true;
+        }
+        constexpr uint8_t INTENSITY_STEP = 28;
+        if (event.character().size() == 1) {
+            const char ch = event.character()[0];
+            if (ch >= '1' && ch <= '9') {
+                auto intensity = static_cast<uint8_t>((ch - '0') * INTENSITY_STEP);
+                g_rumble_left.store(intensity);
+                g_rumble_right.store(intensity);
+                g_rumble_changed.store(true);
+                return true;
+            }
+            if (ch == '0') {
+                g_rumble_left.store(0);
+                g_rumble_right.store(0);
+                g_rumble_changed.store(true);
+                return true;
+            }
+            if (ch == 'z' || ch == 'Z') {
+                g_rumble_left.store(255);
+                g_rumble_right.store(0);
+                g_rumble_changed.store(true);
+                return true;
+            }
+            if (ch == 'x' || ch == 'X') {
+                g_rumble_left.store(0);
+                g_rumble_right.store(255);
+                g_rumble_changed.store(true);
+                return true;
+            }
+            if (ch == 'c' || ch == 'C') {
+                g_rumble_left.store(255);
+                g_rumble_right.store(255);
+                g_rumble_changed.store(true);
+                return true;
+            }
         }
         return false;
     });
