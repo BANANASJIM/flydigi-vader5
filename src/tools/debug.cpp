@@ -280,10 +280,10 @@ Element render_face_buttons(uint16_t buttons) {
     return vbox({
         text("Buttons") | bold | center,
         vbox({
-            hbox({text("   "), btn(vader5::BTN_Y, " Y ", Color::Yellow), text("   ")}),
-            hbox({btn(vader5::BTN_X, " X ", Color::Blue), text("   "),
-                  btn(vader5::BTN_B, " B ", Color::Red)}),
-            hbox({text("   "), btn(vader5::BTN_A, " A ", Color::Green), text("   ")}),
+            hbox({text("   "), btn(vader5::PAD_Y, " Y ", Color::Yellow), text("   ")}),
+            hbox({btn(vader5::PAD_X, " X ", Color::Blue), text("   "),
+                  btn(vader5::PAD_B, " B ", Color::Red)}),
+            hbox({text("   "), btn(vader5::PAD_A, " A ", Color::Green), text("   ")}),
         }) | border,
     });
 }
@@ -297,12 +297,12 @@ Element render_shoulder_buttons(uint16_t buttons, uint8_t lt, uint8_t rt) {
 
     return hbox({
         vbox({
-            btn(vader5::BTN_LB, " LB "),
+            btn(vader5::PAD_LB, " LB "),
             render_trigger("LT", lt),
         }),
         text("     "),
         vbox({
-            btn(vader5::BTN_RB, " RB "),
+            btn(vader5::PAD_RB, " RB "),
             render_trigger("RT", rt),
         }),
     });
@@ -316,11 +316,11 @@ Element render_center_buttons(uint16_t buttons) {
     };
 
     return hbox({
-        btn(vader5::BTN_SELECT, " SELECT "),
+        btn(vader5::PAD_SELECT, " SELECT "),
         text("  "),
-        btn(vader5::BTN_MODE, " MODE "),
+        btn(vader5::PAD_MODE, " MODE "),
         text("  "),
-        btn(vader5::BTN_START, " START "),
+        btn(vader5::PAD_START, " START "),
     });
 }
 
@@ -389,16 +389,16 @@ constexpr uint8_t EP2_B12_R3 = 0x80;
 
 auto parse_ep2_buttons(uint8_t b11, uint8_t b12) -> uint16_t {
     uint16_t btns = 0;
-    if ((b11 & EP2_B11_A) != 0) { btns |= vader5::BTN_A; }
-    if ((b11 & EP2_B11_B) != 0) { btns |= vader5::BTN_B; }
-    if ((b11 & EP2_B11_X) != 0) { btns |= vader5::BTN_X; }
-    if ((b12 & EP2_B12_Y) != 0) { btns |= vader5::BTN_Y; }
-    if ((b12 & EP2_B12_LB) != 0) { btns |= vader5::BTN_LB; }
-    if ((b12 & EP2_B12_RB) != 0) { btns |= vader5::BTN_RB; }
-    if ((b11 & EP2_B11_SELECT) != 0) { btns |= vader5::BTN_SELECT; }
-    if ((b12 & EP2_B12_START) != 0) { btns |= vader5::BTN_START; }
-    if ((b12 & EP2_B12_L3) != 0) { btns |= vader5::BTN_L3; }
-    if ((b12 & EP2_B12_R3) != 0) { btns |= vader5::BTN_R3; }
+    if ((b11 & EP2_B11_A) != 0) { btns |= vader5::PAD_A; }
+    if ((b11 & EP2_B11_B) != 0) { btns |= vader5::PAD_B; }
+    if ((b11 & EP2_B11_X) != 0) { btns |= vader5::PAD_X; }
+    if ((b12 & EP2_B12_Y) != 0) { btns |= vader5::PAD_Y; }
+    if ((b12 & EP2_B12_LB) != 0) { btns |= vader5::PAD_LB; }
+    if ((b12 & EP2_B12_RB) != 0) { btns |= vader5::PAD_RB; }
+    if ((b11 & EP2_B11_SELECT) != 0) { btns |= vader5::PAD_SELECT; }
+    if ((b12 & EP2_B12_START) != 0) { btns |= vader5::PAD_START; }
+    if ((b12 & EP2_B12_L3) != 0) { btns |= vader5::PAD_L3; }
+    if ((b12 & EP2_B12_R3) != 0) { btns |= vader5::PAD_R3; }
     return btns;
 }
 
@@ -406,10 +406,10 @@ auto parse_ep2_dpad(uint8_t b11) -> uint8_t {
     const uint8_t dpad_bits = b11 & 0x0F;
     // 位掩码转方向
     constexpr std::array<uint8_t, 16> DPAD_MAP = {
-        vader5::DPAD_NONE, vader5::DPAD_UP, vader5::DPAD_DOWN, vader5::DPAD_NONE,
-        vader5::DPAD_LEFT, vader5::DPAD_UP_LEFT, vader5::DPAD_DOWN_LEFT, vader5::DPAD_NONE,
-        vader5::DPAD_RIGHT, vader5::DPAD_UP_RIGHT, vader5::DPAD_DOWN_RIGHT, vader5::DPAD_NONE,
-        vader5::DPAD_NONE, vader5::DPAD_NONE, vader5::DPAD_NONE, vader5::DPAD_NONE
+        vader5::DPAD_NONE, vader5::DPAD_UP, vader5::DPAD_RIGHT, vader5::DPAD_UP_RIGHT,
+        vader5::DPAD_DOWN, vader5::DPAD_NONE, vader5::DPAD_DOWN_RIGHT, vader5::DPAD_NONE,
+        vader5::DPAD_LEFT, vader5::DPAD_UP_LEFT, vader5::DPAD_NONE, vader5::DPAD_NONE,
+        vader5::DPAD_DOWN_LEFT, vader5::DPAD_NONE, vader5::DPAD_NONE, vader5::DPAD_NONE
     };
     return DPAD_MAP.at(dpad_bits);
 }
@@ -486,9 +486,9 @@ void ext_input_thread(const vader5::Hidraw& hidraw) {
                     // 解析完整 gamepad 状态
                     vader5::GamepadState state{};
                     state.left_x = read_s16(data.subspan<EXT_OFF_LX, 2>());
-                    state.left_y = read_s16(data.subspan<EXT_OFF_LX + 2, 2>());
+                    state.left_y = static_cast<int16_t>(-read_s16(data.subspan<EXT_OFF_LX + 2, 2>()));
                     state.right_x = read_s16(data.subspan<EXT_OFF_LX + 4, 2>());
-                    state.right_y = read_s16(data.subspan<EXT_OFF_LX + 6, 2>());
+                    state.right_y = static_cast<int16_t>(-read_s16(data.subspan<EXT_OFF_LX + 6, 2>()));
 
                     const uint8_t b11 = buf.at(EXT_OFF_BTNS);
                     const uint8_t b12 = buf.at(EXT_OFF_BTNS + 1);
@@ -640,8 +640,8 @@ auto main() -> int {
             st = g_state;
         }
 
-        const bool l3 = (st.buttons & vader5::BTN_L3) != 0;
-        const bool r3 = (st.buttons & vader5::BTN_R3) != 0;
+        const bool l3 = (st.buttons & vader5::PAD_L3) != 0;
+        const bool r3 = (st.buttons & vader5::PAD_R3) != 0;
         const uint8_t rumble_l = g_rumble_left.load();
         const uint8_t rumble_r = g_rumble_right.load();
         const uint8_t ext1 = g_ext_buttons.load();

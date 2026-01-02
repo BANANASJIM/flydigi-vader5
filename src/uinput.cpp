@@ -21,6 +21,14 @@ constexpr int TRIGGER_MAX = 255;
 constexpr int EXT_BUTTON_COUNT = 8;
 constexpr std::array<uint8_t, 8> EXT_MASKS = {EXT_C,  EXT_Z,  EXT_M1, EXT_M2,
                                                EXT_M3, EXT_M4, EXT_LM, EXT_RM};
+// Default codes: M1-M4 use BTN_TRIGGER_HAPPY5-8 to match xpad Elite paddles
+// Note: Hardware bit3=M3, bit4=M2 (reversed from label)
+constexpr std::array<int, 8> DEFAULT_EXT_CODES = {
+    BTN_TRIGGER_HAPPY1, BTN_TRIGGER_HAPPY2,  // C, Z
+    BTN_TRIGGER_HAPPY5, BTN_TRIGGER_HAPPY7,  // M1, M3 (Elite P1, P3)
+    BTN_TRIGGER_HAPPY6, BTN_TRIGGER_HAPPY8,  // M2, M4 (Elite P2, P4)
+    BTN_TRIGGER_HAPPY3, BTN_TRIGGER_HAPPY4,  // LM, RM
+};
 } // namespace
 
 auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char* name)
@@ -39,7 +47,7 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char
         (void)ioctl(file_descriptor, UI_SET_KEYBIT, btn);
     }
 
-    for (int idx = 0; idx < EXT_BUTTON_COUNT; ++idx) {
+    for (int idx = 0; idx < 10; ++idx) {
         (void)ioctl(file_descriptor, UI_SET_KEYBIT, BTN_TRIGGER_HAPPY1 + idx);
     }
 
@@ -56,12 +64,21 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char
 
     uinput_abs_setup abs_setup{};
 
-    auto setup_axis = [&](int code, int min_val, int max_val) {
+    auto setup_stick = [&](int code) {
         abs_setup.code = static_cast<uint16_t>(code);
-        abs_setup.absinfo.minimum = min_val;
-        abs_setup.absinfo.maximum = max_val;
+        abs_setup.absinfo.minimum = AXIS_MIN;
+        abs_setup.absinfo.maximum = AXIS_MAX;
         abs_setup.absinfo.fuzz = AXIS_FUZZ;
         abs_setup.absinfo.flat = AXIS_FLAT;
+        (void)ioctl(file_descriptor, UI_ABS_SETUP, &abs_setup);
+    };
+
+    auto setup_trigger = [&](int code) {
+        abs_setup.code = static_cast<uint16_t>(code);
+        abs_setup.absinfo.minimum = TRIGGER_MIN;
+        abs_setup.absinfo.maximum = TRIGGER_MAX;
+        abs_setup.absinfo.fuzz = 0;
+        abs_setup.absinfo.flat = 0;
         (void)ioctl(file_descriptor, UI_ABS_SETUP, &abs_setup);
     };
 
@@ -72,18 +89,18 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char
     (void)ioctl(file_descriptor, UI_SET_ABSBIT, ABS_Z);
     (void)ioctl(file_descriptor, UI_SET_ABSBIT, ABS_RZ);
 
-    setup_axis(ABS_X, AXIS_MIN, AXIS_MAX);
-    setup_axis(ABS_Y, AXIS_MIN, AXIS_MAX);
-    setup_axis(ABS_RX, AXIS_MIN, AXIS_MAX);
-    setup_axis(ABS_RY, AXIS_MIN, AXIS_MAX);
-    setup_axis(ABS_Z, TRIGGER_MIN, TRIGGER_MAX);
-    setup_axis(ABS_RZ, TRIGGER_MIN, TRIGGER_MAX);
+    setup_stick(ABS_X);
+    setup_stick(ABS_Y);
+    setup_stick(ABS_RX);
+    setup_stick(ABS_RY);
+    setup_trigger(ABS_Z);
+    setup_trigger(ABS_RZ);
 
     uinput_setup setup{};
     std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
     setup.id.bustype = BUS_USB;
-    setup.id.vendor = VENDOR_ID;
-    setup.id.product = PRODUCT_ID;
+    setup.id.vendor = ELITE_VENDOR_ID;
+    setup.id.product = ELITE_PRODUCT_ID;
     setup.id.version = 1;
 
     (void)ioctl(file_descriptor, UI_DEV_SETUP, &setup);
@@ -187,24 +204,37 @@ auto Uinput::emit(const GamepadState& state, const GamepadState& prev) const -> 
         }
     };
 
-    emit_btn(BTN_A, BTN_SOUTH);
-    emit_btn(BTN_B, BTN_EAST);
-    emit_btn(BTN_X, BTN_WEST);
-    emit_btn(BTN_Y, BTN_NORTH);
-    emit_btn(BTN_LB, BTN_TL);
-    emit_btn(BTN_RB, BTN_TR);
-    emit_btn(BTN_SELECT, BTN_SELECT);
-    emit_btn(BTN_START, BTN_START);
-    emit_btn(BTN_MODE, BTN_MODE);
-    emit_btn(BTN_L3, BTN_THUMBL);
-    emit_btn(BTN_R3, BTN_THUMBR);
+    emit_btn(PAD_A, BTN_SOUTH);
+    emit_btn(PAD_B, BTN_EAST);
+    emit_btn(PAD_X, BTN_NORTH);
+    emit_btn(PAD_Y, BTN_WEST);
+    emit_btn(PAD_LB, BTN_TL);
+    emit_btn(PAD_RB, BTN_TR);
+    emit_btn(PAD_SELECT, BTN_SELECT);
+    emit_btn(PAD_START, BTN_START);
+    emit_btn(PAD_L3, BTN_THUMBL);
+    emit_btn(PAD_R3, BTN_THUMBR);
 
     for (size_t idx = 0; idx < EXT_BUTTON_COUNT; ++idx) {
         const bool curr = (state.ext_buttons & EXT_MASKS[idx]) != 0;
         const bool old = (prev.ext_buttons & EXT_MASKS[idx]) != 0;
         if (curr != old) {
-            const int code = ext_mappings_[idx].value_or(BTN_TRIGGER_HAPPY1 + static_cast<int>(idx));
+            const int code = ext_mappings_[idx].value_or(DEFAULT_EXT_CODES[idx]);
             emit_key(code, curr ? 1 : 0);
+        }
+    }
+
+    if (state.ext_buttons2 != prev.ext_buttons2) {
+        const bool curr_o = (state.ext_buttons2 & EXT_O) != 0;
+        const bool old_o = (prev.ext_buttons2 & EXT_O) != 0;
+        if (curr_o != old_o) {
+            emit_key(BTN_TRIGGER_HAPPY9, curr_o ? 1 : 0);
+        }
+
+        const bool curr_home = (state.ext_buttons2 & EXT_HOME) != 0;
+        const bool old_home = (prev.ext_buttons2 & EXT_HOME) != 0;
+        if (curr_home != old_home) {
+            emit_key(BTN_MODE, curr_home ? 1 : 0);
         }
     }
 

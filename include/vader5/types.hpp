@@ -15,6 +15,10 @@ using Result = std::expected<T, Error>;
 constexpr uint16_t VENDOR_ID = 0x37d7;
 constexpr uint16_t PRODUCT_ID = 0x2401;
 
+// Xbox Elite Series 2 (for uinput emulation)
+constexpr uint16_t ELITE_VENDOR_ID = 0x045e;
+constexpr uint16_t ELITE_PRODUCT_ID = 0x0b00;
+
 struct GamepadState {
     int16_t left_x{};
     int16_t left_y{};
@@ -29,21 +33,22 @@ struct GamepadState {
     uint8_t ext_buttons2{};
 };
 
+// Gamepad button masks (avoid linux/input.h macro collision)
 enum Button : uint16_t {
-    BTN_A = 1 << 0,
-    BTN_B = 1 << 1,
-    BTN_X = 1 << 2,
-    BTN_Y = 1 << 3,
-    BTN_LB = 1 << 4,
-    BTN_RB = 1 << 5,
-    BTN_SELECT = 1 << 6,
-    BTN_START = 1 << 7,
-    BTN_MODE = 1 << 8,
-    BTN_L3 = 1 << 9,
-    BTN_R3 = 1 << 10,
+    PAD_A = 1 << 0,
+    PAD_B = 1 << 1,
+    PAD_X = 1 << 2,
+    PAD_Y = 1 << 3,
+    PAD_LB = 1 << 4,
+    PAD_RB = 1 << 5,
+    PAD_SELECT = 1 << 6,
+    PAD_START = 1 << 7,
+    PAD_MODE = 1 << 8,
+    PAD_L3 = 1 << 9,
+    PAD_R3 = 1 << 10,
 };
 
-// byte[13] of extended report (Interface 2)
+// byte[13] of extended report (Interface 1 test mode)
 enum ExtButton : uint8_t {
     EXT_C = 1 << 0,
     EXT_Z = 1 << 1,
