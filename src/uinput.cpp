@@ -19,8 +19,8 @@ constexpr int AXIS_FLAT = 128;
 constexpr int TRIGGER_MIN = 0;
 constexpr int TRIGGER_MAX = 255;
 constexpr int EXT_BUTTON_COUNT = 8;
-constexpr std::array<uint8_t, 8> EXT_MASKS = {EXT_C,  EXT_Z,      EXT_M4,   EXT_M1,
-                                               EXT_M2, EXT_M3, EXT_CIRCLE, EXT_HOME};
+constexpr std::array<uint8_t, 8> EXT_MASKS = {EXT_C,  EXT_Z,  EXT_M1, EXT_M2,
+                                               EXT_M3, EXT_M4, EXT_LM, EXT_RM};
 } // namespace
 
 auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char* name)

@@ -82,7 +82,7 @@ auto Hidraw::open(uint16_t vid, uint16_t pid, int iface) -> Result<Hidraw> {
         return std::unexpected(dev_path.error());
     }
 
-    const int file_descriptor = ::open(dev_path->c_str(), O_RDONLY | O_NONBLOCK);
+    const int file_descriptor = ::open(dev_path->c_str(), O_RDWR | O_NONBLOCK);
     if (file_descriptor < 0) {
         return std::unexpected(std::error_code(errno, std::system_category()));
     }
@@ -117,6 +117,14 @@ auto Hidraw::read(std::span<uint8_t> buf) const -> Result<size_t> {
         return std::unexpected(std::error_code(errno, std::system_category()));
     }
     return static_cast<size_t>(bytes_read);
+}
+
+auto Hidraw::write(std::span<const uint8_t> buf) const -> Result<size_t> {
+    const auto bytes_written = ::write(fd_, buf.data(), buf.size());
+    if (bytes_written < 0) {
+        return std::unexpected(std::error_code(errno, std::system_category()));
+    }
+    return static_cast<size_t>(bytes_written);
 }
 
 auto Hidraw::parse_report(std::span<const uint8_t> data) -> std::optional<GamepadState> {

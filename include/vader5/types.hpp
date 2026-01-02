@@ -26,6 +26,7 @@ struct GamepadState {
     uint16_t buttons{};
     uint8_t dpad{};
     uint8_t ext_buttons{};
+    uint8_t ext_buttons2{};
 };
 
 enum Button : uint16_t {
@@ -42,15 +43,22 @@ enum Button : uint16_t {
     BTN_R3 = 1 << 10,
 };
 
+// byte[13] of extended report (Interface 2)
 enum ExtButton : uint8_t {
     EXT_C = 1 << 0,
     EXT_Z = 1 << 1,
-    EXT_M4 = 1 << 2,
-    EXT_M1 = 1 << 3,
-    EXT_M2 = 1 << 4,
-    EXT_M3 = 1 << 5,
-    EXT_CIRCLE = 1 << 6,
-    EXT_HOME = 1 << 7,
+    EXT_M1 = 1 << 2,
+    EXT_M2 = 1 << 3,
+    EXT_M3 = 1 << 4,
+    EXT_M4 = 1 << 5,
+    EXT_LM = 1 << 6,
+    EXT_RM = 1 << 7,
+};
+
+// byte[14] of extended report
+enum ExtButton2 : uint8_t {
+    EXT_O = 1 << 0,
+    EXT_HOME = 1 << 3,
 };
 
 enum Dpad : uint8_t {

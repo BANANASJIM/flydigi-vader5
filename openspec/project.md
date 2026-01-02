@@ -1,54 +1,78 @@
 # Project Context
 
 ## Purpose
-Linux driver and tools for Flydigi Vader 5 Pro gamepad (2.4G USB).
+Linux userspace driver for Flydigi Vader 5 Pro gamepad (2.4G USB).
 
 ## Device Info
 - VID: 0x37d7, PID: 0x2401
-- Interface 0: Vendor Specific (Xbox 0x5d) - Main input (20B on EP1 IN)
-- Interface 1-3: HID - Config/extended/keyboard emulation
+- Interface 0: Vendor (Xbox 0x5d) - EP1 IN 20B 主输入, EP5 OUT 8B 震动 (libusb)
+- Interface 1: HID - EP2 IN 32B 配置响应/扩展输入, EP6 OUT 32B 配置命令 (hidraw)
+- Interface 2: HID - EP2 IN 32B 扩展输入 (hidraw, 实际数据从 IF1 返回)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Vader 5 Pro USB                         │
-├──────────────────┬──────────────────┬───────────────────────┤
-│   Interface 0    │   Interface 1    │    Interface 2-3      │
-│ Vendor (Xbox)    │      HID         │        HID            │
-│   EP1 IN 20B     │   EP2 IN/OUT     │    EP3/4 IN           │
-└────────┬─────────┴────────┬─────────┴───────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                       Vader 5 Pro USB                            │
+├──────────────────┬──────────────────┬────────────────────────────┤
+│   Interface 0    │   Interface 1    │       Interface 2          │
+│ Vendor (libusb)  │  HID (hidraw)    │      HID (hidraw)          │
+│ EP1 IN: 主输入   │ EP6 OUT: 命令    │    EP2 IN: (未使用)        │
+│ EP5 OUT: 震动    │ EP2 IN: 响应/扩展│                            │
+└────────┬─────────┴────────┬─────────┴────────────────────────────┘
          │                  │
          ▼                  ▼
 ┌─────────────────┐  ┌─────────────────┐
-│  Kernel Driver  │  │ Userspace Tools │
-│  (driver/)      │  │ (src/, hidraw)  │
-│                 │  │                 │
-│ USB driver      │  │ vader5-debug    │
-│ → input event   │  │ vader5-config   │
-└─────────────────┘  └─────────────────┘
+│   Transport     │  │     Hidraw      │
+│   (libusb)      │  │ 命令发送/扩展读取│
+└────────┬────────┘  └────────┬────────┘
+         │                    │
+         │             GamepadState
+         │                    │
+         ▼                    ▼
+┌─────────────────┐   ┌─────────────────┐
+│  vader5-debug   │   │     Uinput      │
+│   TUI Tool      │   │ Virtual Gamepad │
+└─────────────────┘   └────────┬────────┘
+                               │
+                               ▼
+                      ┌─────────────────┐
+                      │    vader5d      │
+                      │  Main Daemon    │
+                      └─────────────────┘
 ```
 
 ## Components
 
-### Kernel Driver (`driver/`)
-- USB driver (not HID) for Interface 0
-- Xbox-like vendor protocol
-- Creates `/dev/input/eventX`
+### Core Library (`include/vader5/`, `src/`)
+| Module | File | Purpose |
+|--------|------|---------|
+| Types | `types.hpp` | GamepadState, Button/Dpad enums, Result<T> |
+| Hidraw | `hidraw.hpp/cpp` | HID device I/O, report parsing |
+| Uinput | `uinput.hpp/cpp` | Virtual gamepad, differential event emission |
+| Gamepad | `gamepad.hpp/cpp` | Orchestrates hidraw → uinput pipeline |
+| Config | `config.hpp/cpp` | TOML config, key remapping |
+| Transport | `transport.hpp/cpp` | libusb wrapper for direct USB access |
 
-### Userspace Tools (`src/`)
-- `vader5-debug` - Protocol analysis via hidraw
-- `vader5-config` - LED/vibration/key mapping
+### Executables
+| Binary | Source | Purpose |
+|--------|--------|---------|
+| `vader5d` | `main.cpp` | Daemon: poll-loop forwarding to uinput |
+| `vader5-debug` | `debug.cpp` | TUI: live state visualization, rumble control |
 
 ## Tech Stack
-| Component | Language | API |
-|-----------|----------|-----|
-| Kernel driver | C | USB, input subsystem |
-| Userspace tools | C++20 | hidraw, uinput |
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Build | CMake 3.20+ | C++23 compilation |
+| Config | toml++ v3.4.0 | TOML parsing |
+| Debug UI | FTXUI v5.0.0 | Terminal UI |
+| USB | libusb 1.0 | Direct device access (debug) |
+| Input | Linux hidraw/uinput | Device abstraction |
 
 ## Code Style
-- Kernel: Linux kernel style (tabs, 80 cols)
-- Userspace: clang-format, C++20
+- clang-format, C++23
+- Headers: declarations only, minimal comments
+- `Result<T>` = `std::expected<T, std::error_code>`
 
 ## References
 - vader3: https://github.com/ahungry/vader3

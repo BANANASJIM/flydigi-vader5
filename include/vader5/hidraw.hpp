@@ -20,6 +20,7 @@ public:
 
     [[nodiscard]] auto fd() const noexcept -> int { return fd_; }
     [[nodiscard]] auto read(std::span<uint8_t> buf) const -> Result<size_t>;
+    [[nodiscard]] auto write(std::span<const uint8_t> buf) const -> Result<size_t>;
     [[nodiscard]] static auto parse_report(std::span<const uint8_t> data)
         -> std::optional<GamepadState>;
 
