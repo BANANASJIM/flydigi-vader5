@@ -98,6 +98,7 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
 
     uinput_setup setup{};
     std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
+    setup.name[UINPUT_MAX_NAME_SIZE - 1] = '\0';
     setup.id.bustype = BUS_USB;
     setup.id.vendor = ELITE_VENDOR_ID;
     setup.id.product = ELITE_PRODUCT_ID;
@@ -298,6 +299,7 @@ auto InputDevice::create(const char* name) -> Result<InputDevice> {
 
     uinput_setup setup{};
     std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
+    setup.name[UINPUT_MAX_NAME_SIZE - 1] = '\0';
     setup.id.bustype = BUS_USB;
     setup.id.vendor = 0x0001;
     setup.id.product = 0x0001;

@@ -1,0 +1,50 @@
+# Vader 5 Pro Configuration
+
+# Button remapping: map extended buttons to keyboard/mouse
+# Available: KEY_A-Z, KEY_F1-F16, KEY_ESC, KEY_TAB, KEY_SPACE, etc.
+#            mouse_left, mouse_right, mouse_middle, disabled
+[remap]
+M1 = "KEY_F13"
+M2 = "KEY_F14"
+M3 = "KEY_F15"
+M4 = "KEY_F16"
+C = "KEY_TAB"
+Z = "KEY_ESC"
+# LM = "disabled"         # disable LM button
+# RM = "disabled"         # disable RM button
+# O = "disabled"          # disable O button
+
+# Gyro mouse: use controller motion as mouse
+# mode: off, mouse
+[gyro]
+mode = "off"
+# sensitivity = 1.5       # overall sensitivity
+# sensitivity_x = 1.5     # horizontal sensitivity
+# sensitivity_y = 1.5     # vertical sensitivity
+# deadzone = 50           # ignore small movements
+# smoothing = 0.8         # 0.0-1.0, higher = smoother
+# curve = 1.0             # response curve exponent
+# invert_x = false
+# invert_y = false
+
+# Stick settings
+[stick.left]
+deadzone = 128
+# as_mouse = false        # use as mouse
+# mouse_sensitivity = 1.0
+
+[stick.right]
+deadzone = 128
+# as_mouse = false
+# mouse_sensitivity = 1.0
+
+# Mode shift: hold button to activate alternate mode
+# Available actions: gyro, right_stick, left_stick, dpad, button remaps
+[mode_shift.LM]
+gyro = "mouse"            # enable gyro mouse while holding
+right_stick = "mouse"     # right stick becomes mouse
+# left_stick = "scroll"   # left stick becomes scroll wheel
+# dpad = "arrows"         # dpad becomes arrow keys
+RB = "mouse_left"         # RB becomes left click
+RT = "mouse_right"        # RT becomes right click
+# scroll_sensitivity = 1.0

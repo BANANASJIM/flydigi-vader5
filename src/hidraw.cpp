@@ -27,16 +27,20 @@ auto find_hidraw_device(uint16_t vid, uint16_t pid, int iface_num) -> Result<std
         bool iface_match = (iface_num < 0);
 
         while (std::getline(uevent, line)) {
-            if (line.starts_with("HID_ID=")) {
-                if (auto pos = line.find(':'); pos != std::string::npos) {
-                    vid_match = (std::stoul(line.substr(pos + 1, 8), nullptr, 16) == vid);
-                    pid_match = (std::stoul(line.substr(pos + 10, 8), nullptr, 16) == pid);
+            try {
+                if (line.starts_with("HID_ID=")) {
+                    if (auto pos = line.find(':'); pos != std::string::npos) {
+                        vid_match = (std::stoul(line.substr(pos + 1, 8), nullptr, 16) == vid);
+                        pid_match = (std::stoul(line.substr(pos + 10, 8), nullptr, 16) == pid);
+                    }
                 }
-            }
-            if (iface_num >= 0 && line.starts_with("HID_PHYS=")) {
-                if (auto pos = line.rfind("/input"); pos != std::string::npos) {
-                    iface_match = (std::stoi(line.substr(pos + 6)) == iface_num);
+                if (iface_num >= 0 && line.starts_with("HID_PHYS=")) {
+                    if (auto pos = line.rfind("/input"); pos != std::string::npos) {
+                        iface_match = (std::stoi(line.substr(pos + 6)) == iface_num);
+                    }
                 }
+            } catch (const std::exception&) {
+                continue;
             }
         }
 

@@ -1,5 +1,4 @@
 #include "vader5/hidraw.hpp"
-#include "vader5/transport.hpp"
 #include "vader5/types.hpp"
 
 #include <ftxui/component/component.hpp>
@@ -44,11 +43,6 @@ constexpr int READ_TIMEOUT_MS = 16;
 constexpr uint8_t IFACE_INPUT = 0;
 constexpr uint8_t IFACE_CONFIG = 1;
 constexpr int TRIGGER_BAR_WIDTH = 15;
-constexpr uint8_t EP_INPUT = 0x01;
-constexpr uint8_t EP_OUTPUT = 0x05;
-constexpr uint8_t IFACE_EXT = 2;
-constexpr uint8_t RUMBLE_PKT_SIZE = 8;
-constexpr uint8_t RUMBLE_CMD = 0x08;
 
 constexpr uint8_t MAGIC_5A = 0x5a;
 constexpr uint8_t MAGIC_A5 = 0xa5;
@@ -60,10 +54,6 @@ constexpr uint8_t MODE_NORMAL = 0x14;
 std::atomic<bool> g_running{true};
 vader5::GamepadState g_state{};
 std::mutex g_mutex;
-
-std::atomic<uint8_t> g_rumble_left{0};
-std::atomic<uint8_t> g_rumble_right{0};
-std::atomic<bool> g_rumble_changed{false};
 
 std::atomic<bool> g_test_mode{false};
 std::atomic<bool> g_test_mode_changed{false};
@@ -89,26 +79,18 @@ struct ImuData {
 ImuData g_imu{};
 std::mutex g_imu_mutex;
 
-void send_rumble(vader5::UsbTransport& usb, uint8_t left, uint8_t right) {
-    std::array<uint8_t, RUMBLE_PKT_SIZE> pkt = {0x00, RUMBLE_CMD, 0x00, left, right, 0x00, 0x00, 0x00};
-    auto result = usb.write(pkt, EP_OUTPUT, READ_TIMEOUT_MS);
-    (void)result;
-}
-
 constexpr size_t CFG_PKT_SIZE = 32;
 
 void send_cmd(vader5::Hidraw& hidraw, std::span<const uint8_t> data) {
     std::array<uint8_t, CFG_PKT_SIZE> pkt{};
     std::ranges::copy(data, pkt.begin());
 
-    // 发送命令
     auto write_result = hidraw.write(pkt);
     if (!write_result) {
         add_log("CMD " + std::to_string(data[2]) + " write FAIL");
         return;
     }
 
-    // 多次尝试读取响应
     std::array<uint8_t, CFG_PKT_SIZE> resp{};
     constexpr int MAX_RETRIES = 10;
     for (int i = 0; i < MAX_RETRIES; ++i) {
@@ -324,38 +306,19 @@ Element render_center_buttons(uint16_t buttons) {
     });
 }
 
-Element render_rumble(uint8_t left, uint8_t right) {
-    auto bar = [](const std::string& name, uint8_t val, Color col) {
-        const float ratio = static_cast<float>(val) / 255.0F;
-        return hbox({
-            text(name + ": "),
-            gaugeRight(ratio) | size(WIDTH, EQUAL, TRIGGER_BAR_WIDTH) | color(col),
-            text(" " + std::to_string(val)),
-        });
-    };
-    return vbox({
-        text("Rumble (X360)") | bold | center,
-        bar("L", left, Color::Magenta),
-        bar("R", right, Color::Cyan),
-    }) | border;
-}
-
-void input_thread(vader5::UsbTransport& usb) {
+void input_thread(const vader5::Hidraw& hidraw) {
     try {
         std::array<uint8_t, READ_BUFFER_SIZE> buf{};
         while (g_running.load()) {
-            auto bytes = usb.read(buf, READ_TIMEOUT_MS);
+            auto bytes = hidraw.read(buf);
             if (!g_test_mode.load() && bytes && *bytes > 0) {
                 if (auto state = vader5::Hidraw::parse_report({buf.data(), *bytes})) {
                     const std::scoped_lock lock(g_mutex);
                     g_state = *state;
                 }
             }
-            if (g_rumble_changed.exchange(false)) {
-                send_rumble(usb, g_rumble_left.load(), g_rumble_right.load());
-            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        send_rumble(usb, 0, 0);
     } catch (...) {
         g_running.store(false);
     }
@@ -374,12 +337,10 @@ constexpr size_t EXT_OFF_GYRO_X = 17;
 constexpr size_t EXT_OFF_ACCEL_X = 23;
 constexpr size_t EXT_REPORT_MIN = 29;
 
-// EP2 byte[11] 按键位
 constexpr uint8_t EP2_B11_A = 0x10;
 constexpr uint8_t EP2_B11_B = 0x20;
 constexpr uint8_t EP2_B11_SELECT = 0x40;
 constexpr uint8_t EP2_B11_X = 0x80;
-// EP2 byte[12] 按键位
 constexpr uint8_t EP2_B12_Y = 0x01;
 constexpr uint8_t EP2_B12_START = 0x02;
 constexpr uint8_t EP2_B12_LB = 0x04;
@@ -404,7 +365,6 @@ auto parse_ep2_buttons(uint8_t b11, uint8_t b12) -> uint16_t {
 
 auto parse_ep2_dpad(uint8_t b11) -> uint8_t {
     const uint8_t dpad_bits = b11 & 0x0F;
-    // 位掩码转方向
     constexpr std::array<uint8_t, 16> DPAD_MAP = {
         vader5::DPAD_NONE, vader5::DPAD_UP, vader5::DPAD_RIGHT, vader5::DPAD_UP_RIGHT,
         vader5::DPAD_DOWN, vader5::DPAD_NONE, vader5::DPAD_DOWN_RIGHT, vader5::DPAD_NONE,
@@ -467,67 +427,6 @@ Element render_imu(const ImuData& imu, bool test_mode) {
     }) | border;
 }
 
-void ext_input_thread(const vader5::Hidraw& hidraw) {
-    try {
-        std::array<uint8_t, READ_BUFFER_SIZE> buf{};
-        while (g_running.load()) {
-            auto bytes = hidraw.read(buf);
-            if (g_test_mode.load() && bytes && *bytes > 0) {
-                constexpr size_t HEX_BUF_SIZE = 64;
-                std::array<char, HEX_BUF_SIZE> hex{};
-                (void)std::snprintf(hex.data(), hex.size(), "EP2: %zu bytes [%02x %02x %02x]",
-                                    *bytes, buf.at(0), buf.at(1), buf.at(2));
-                add_log(hex.data());
-            }
-            if (g_test_mode.load() && bytes && *bytes >= EXT_REPORT_MIN) {
-                if (buf.at(0) == EXT_MAGIC_5A && buf.at(1) == EXT_MAGIC_A5 && buf.at(2) == EXT_MAGIC_EF) {
-                    const std::span<const uint8_t, READ_BUFFER_SIZE> data(buf);
-
-                    // 解析完整 gamepad 状态
-                    vader5::GamepadState state{};
-                    state.left_x = read_s16(data.subspan<EXT_OFF_LX, 2>());
-                    state.left_y = static_cast<int16_t>(-read_s16(data.subspan<EXT_OFF_LX + 2, 2>()));
-                    state.right_x = read_s16(data.subspan<EXT_OFF_LX + 4, 2>());
-                    state.right_y = static_cast<int16_t>(-read_s16(data.subspan<EXT_OFF_LX + 6, 2>()));
-
-                    const uint8_t b11 = buf.at(EXT_OFF_BTNS);
-                    const uint8_t b12 = buf.at(EXT_OFF_BTNS + 1);
-                    state.buttons = parse_ep2_buttons(b11, b12);
-                    state.dpad = parse_ep2_dpad(b11);
-                    state.left_trigger = buf.at(EXT_OFF_LT);
-                    state.right_trigger = buf.at(EXT_OFF_RT);
-                    state.ext_buttons = buf.at(EXT_OFF_EXT1);
-                    state.ext_buttons2 = buf.at(EXT_OFF_EXT2);
-
-                    // 更新全局状态
-                    {
-                        const std::scoped_lock lock(g_mutex);
-                        g_state = state;
-                    }
-                    g_ext_buttons.store(state.ext_buttons);
-                    g_ext_buttons2.store(state.ext_buttons2);
-
-                    // IMU 数据
-                    ImuData imu{};
-                    imu.gyro_x = read_s16(data.subspan<EXT_OFF_GYRO_X, 2>());
-                    imu.gyro_y = read_s16(data.subspan<EXT_OFF_GYRO_X + 2, 2>());
-                    imu.gyro_z = read_s16(data.subspan<EXT_OFF_GYRO_X + 4, 2>());
-                    imu.accel_x = read_s16(data.subspan<EXT_OFF_ACCEL_X, 2>());
-                    imu.accel_y = read_s16(data.subspan<EXT_OFF_ACCEL_X + 2, 2>());
-                    imu.accel_z = read_s16(data.subspan<EXT_OFF_ACCEL_X + 4, 2>());
-                    {
-                        const std::scoped_lock lock(g_imu_mutex);
-                        g_imu = imu;
-                    }
-                }
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(READ_TIMEOUT_MS));
-        }
-    } catch (...) {
-        g_running.store(false);
-    }
-}
-
 void parse_ext_report(std::span<const uint8_t, READ_BUFFER_SIZE> data) {
     vader5::GamepadState state{};
     state.left_x = read_s16(data.subspan<EXT_OFF_LX, 2>());
@@ -572,7 +471,6 @@ void config_thread(vader5::Hidraw& hidraw_cfg) {
             if (g_test_mode_changed.exchange(false)) {
                 send_test_mode(hidraw_cfg, g_test_mode.load());
             }
-            // 在 test mode 下持续读取扩展数据
             if (g_test_mode.load()) {
                 auto bytes = hidraw_cfg.read(buf);
                 if (bytes && *bytes >= EXT_REPORT_MIN) {
@@ -590,6 +488,17 @@ void config_thread(vader5::Hidraw& hidraw_cfg) {
     }
 }
 
+auto open_hidraw_input() -> std::optional<vader5::Hidraw> {
+    auto hidraw = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_INPUT);
+    if (!hidraw) {
+        std::println(stderr, "Error: Failed to open hidraw (Interface 0)");
+        return std::nullopt;
+    }
+    std::println(stderr, "Hidraw opened (Interface 0)");
+    add_log("IF0: hidraw OK");
+    return std::move(*hidraw);
+}
+
 auto open_hidraw_config() -> std::optional<vader5::Hidraw> {
     auto hidraw_cfg = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_CONFIG);
     if (!hidraw_cfg) {
@@ -601,35 +510,21 @@ auto open_hidraw_config() -> std::optional<vader5::Hidraw> {
     add_log("IF1: hidraw OK");
     return std::move(*hidraw_cfg);
 }
-
-auto open_hidraw_ext() -> std::optional<vader5::Hidraw> {
-    auto hidraw_ext = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_EXT);
-    if (!hidraw_ext) {
-        add_log("IF2: hidraw FAILED");
-        return std::nullopt;
-    }
-    add_log("IF2: hidraw OK");
-    return std::move(*hidraw_ext);
-}
 } // namespace
 
 auto main() -> int {
-    auto usb = vader5::UsbTransport::open(vader5::VENDOR_ID, vader5::PRODUCT_ID,
-                                          IFACE_INPUT, EP_INPUT);
-    if (!usb) {
-        std::println(stderr, "Error: Failed to open USB transport (Interface 0)");
+    auto hidraw_input = open_hidraw_input();
+    if (!hidraw_input) {
         return EXIT_FAILURE;
     }
-    std::println(stderr, "USB transport opened (Interface 0)");
 
     auto hidraw_cfg = open_hidraw_config();
-    auto hidraw_ext = open_hidraw_ext();
 
-    std::optional<std::thread> ext_reader;
     std::optional<std::thread> cfg_handler;
-    if (hidraw_ext) { ext_reader.emplace(ext_input_thread, std::ref(*hidraw_ext)); }
-    if (hidraw_cfg) { cfg_handler.emplace(config_thread, std::ref(*hidraw_cfg)); }
-    std::thread reader(input_thread, std::ref(*usb));
+    if (hidraw_cfg) {
+        cfg_handler.emplace(config_thread, std::ref(*hidraw_cfg));
+    }
+    std::thread reader(input_thread, std::cref(*hidraw_input));
 
     auto screen = ScreenInteractive::Fullscreen();
 
@@ -642,8 +537,6 @@ auto main() -> int {
 
         const bool l3 = (st.buttons & vader5::PAD_L3) != 0;
         const bool r3 = (st.buttons & vader5::PAD_R3) != 0;
-        const uint8_t rumble_l = g_rumble_left.load();
-        const uint8_t rumble_r = g_rumble_right.load();
         const uint8_t ext1 = g_ext_buttons.load();
         const uint8_t ext2 = g_ext_buttons2.load();
         const bool test_mode = g_test_mode.load();
@@ -682,12 +575,8 @@ auto main() -> int {
             separator(),
             render_ext_buttons(ext1, ext2, test_mode) | center,
             separator(),
-            hbox({
-                render_imu(imu, test_mode),
-                text("  "),
-                render_rumble(rumble_l, rumble_r),
-            }) | center,
-            text("[1-9] intensity  [Z] left  [X] right  [C] both  [0] stop  [T] test mode  [Q] quit") | dim | center,
+            render_imu(imu, test_mode) | center,
+            text("[T] test mode  [Q] quit") | dim | center,
             separator(),
             vbox([&] {
                 std::vector<Element> log_elems;
@@ -710,39 +599,7 @@ auto main() -> int {
             return true;
         }
         if (event.character().size() == 1) {
-            constexpr uint8_t INTENSITY_STEP = 28;
             const char ch = event.character().front();
-            if (ch >= '1' && ch <= '9') {
-                auto intensity = static_cast<uint8_t>((ch - '0') * INTENSITY_STEP);
-                g_rumble_left.store(intensity);
-                g_rumble_right.store(intensity);
-                g_rumble_changed.store(true);
-                return true;
-            }
-            if (ch == '0') {
-                g_rumble_left.store(0);
-                g_rumble_right.store(0);
-                g_rumble_changed.store(true);
-                return true;
-            }
-            if (ch == 'z' || ch == 'Z') {
-                g_rumble_left.store(255);
-                g_rumble_right.store(0);
-                g_rumble_changed.store(true);
-                return true;
-            }
-            if (ch == 'x' || ch == 'X') {
-                g_rumble_left.store(0);
-                g_rumble_right.store(255);
-                g_rumble_changed.store(true);
-                return true;
-            }
-            if (ch == 'c' || ch == 'C') {
-                g_rumble_left.store(255);
-                g_rumble_right.store(255);
-                g_rumble_changed.store(true);
-                return true;
-            }
             if (ch == 't' || ch == 'T') {
                 bool expected = g_test_mode.load();
                 while (!g_test_mode.compare_exchange_weak(expected, !expected)) {}
@@ -765,9 +622,6 @@ auto main() -> int {
     g_running.store(false);
     refresh.join();
     reader.join();
-    if (ext_reader) {
-        ext_reader->join();
-    }
     if (cfg_handler) {
         cfg_handler->join();
     }

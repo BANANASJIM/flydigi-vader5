@@ -1,0 +1,9 @@
+# Vader 5 Pro Virtual Gamepad - SDL Game Controller Mapping
+# Place this file at ~/.config/SDL2/gamecontrollerdb.txt or set SDL_GAMECONTROLLERCONFIG
+
+# Button layout:
+# Standard: a,b,x,y,leftshoulder,rightshoulder,back,start,guide,leftstick,rightstick,dpup,dpdown,dpleft,dpright
+# Extended: paddle1(M1),paddle2(M2),paddle3(M3),paddle4(M4),misc1(O)
+# Note: C,Z,LM,RM buttons available as b16,b17,b22,b23
+
+03000000d7370000012400000100000,Vader 5 Pro Virtual Gamepad,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b6,start:b7,guide:b8,leftstick:b9,rightstick:b10,dpup:b11,dpdown:b12,dpleft:b13,dpright:b14,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a4,righttrigger:a5,paddle1:b18,paddle2:b19,paddle3:b20,paddle4:b21,misc1:b24,platform:Linux,
