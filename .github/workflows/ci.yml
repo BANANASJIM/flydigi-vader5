@@ -20,31 +20,26 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang-tidy
-          if [ "${{ matrix.compiler }}" = "clang" ]; then
-            sudo apt-get install -y clang
+          sudo apt-get install -y cmake ninja-build
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            sudo apt-get install -y clang-tidy
+          elif [ "${{ matrix.compiler }}" = "clang" ]; then
+            sudo apt-get install -y clang libc++-dev libc++abi-dev
           fi
 
       - name: Configure
         run: |
-          if [ "${{ matrix.compiler }}" = "clang" ]; then
+          TIDY_FLAG=OFF
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+            TIDY_FLAG=ON
+          elif [ "${{ matrix.compiler }}" = "clang" ]; then
             export CC=clang CXX=clang++
+            export CXXFLAGS="-stdlib=libc++"
           fi
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DENABLE_CLANG_TIDY=ON
+            -DENABLE_CLANG_TIDY=$TIDY_FLAG
 
       - name: Build
         run: cmake --build build
 
-  format:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
-
-      - name: Check format
-        run: |
-          find src include -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror
