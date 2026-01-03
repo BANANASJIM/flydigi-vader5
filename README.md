@@ -5,7 +5,7 @@ Linux userspace driver for the Flydigi Vader 5 Pro gamepad (2.4G USB dongle).
 ## Features
 
 - Xbox Elite emulation with Steam paddle support (M1-M4)
-- Gyro mouse / joystick mode
+- Gyro support: mouse mode or map to right stick (for games without gyro)
 - Layer system with tap-hold (like QMK keyboard firmware)
 - Button remap to keyboard/mouse
 

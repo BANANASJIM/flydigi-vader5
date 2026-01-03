@@ -25,7 +25,8 @@ Checks: >
     -hicpp-no-array-decay,
     -concurrency-mt-unsafe,
     -misc-const-correctness,
-    -bugprone-unchecked-optional-access
+    -bugprone-unchecked-optional-access,
+    -readability-convert-member-functions-to-static
 
 WarningsAsErrors: '*'
 

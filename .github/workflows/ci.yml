@@ -20,21 +20,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
-            sudo apt-get install -y clang-tidy
-          elif [ "${{ matrix.compiler }}" = "clang" ]; then
-            sudo apt-get install -y clang libc++-dev libc++abi-dev
-          fi
+          sudo apt-get install -y cmake ninja-build clang clang-tidy libc++-dev libc++abi-dev
 
       - name: Configure
         run: |
           TIDY_FLAG=OFF
-          if [ "${{ matrix.compiler }}" = "gcc" ]; then
-            TIDY_FLAG=ON
-          elif [ "${{ matrix.compiler }}" = "clang" ]; then
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
             export CC=clang CXX=clang++
             export CXXFLAGS="-stdlib=libc++"
+            TIDY_FLAG=ON
           fi
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
