@@ -14,8 +14,12 @@ Linux userspace driver for the Flydigi Vader 5 Pro gamepad (2.4G USB dongle).
 ```bash
 git clone https://github.com/BANANASJIM/flydigi-vader5.git
 cd flydigi-vader5
-cmake -B build && cmake --build build
+./install/install.sh          # build + udev rules + config
 sudo ./build/vader5d
+
+# Or full install with systemd service
+./install/install.sh install
+sudo systemctl enable --now vader5d
 ```
 
 ## How It Works
@@ -89,6 +93,10 @@ remap = { A = "mouse_left", B = "mouse_right" }
 See [docs/configuration.md](docs/configuration.md) for full options.
 
 ## Steam Paddles
+
+With `emulate_elite = true`, Steam Input recognizes the controller as Xbox One Elite 2:
+
+![Steam Input Elite Recognition](docs/images/steam_elite.png)
 
 | Vader 5 | Elite | Steam Input  |
 |---------|-------|--------------|
