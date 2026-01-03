@@ -15,7 +15,8 @@ Users want:
 ## Goals
 
 - Direct button remaps work without any layer activation
-- Multiple layers can be active simultaneously (mappings merge)
+- Single-layer mode: only one layer active at a time (first activated wins)
+- Active layer can remap other layer triggers
 - Conflict detection logs warnings at startup
 - Backward compatible with existing mode_shift configs
 
@@ -99,8 +100,9 @@ Like QMK/ZMK keyboards - simple layer activation from base:
 ```
 
 - Base → Layer only (no layer-to-layer jumps)
-- Multiple layers can be active simultaneously (hold RM + LM)
-- When both active, mappings merge; conflict = warn at startup
+- **Single-layer mode**: Only one layer active at a time
+- First activated layer blocks other layer triggers
+- Active layer can remap other layer's trigger buttons
 
 ### Config Structure
 
@@ -184,8 +186,8 @@ Each layer is a subtable under `[layer]` with the layer name as key. Cleaner tha
 
 **Migration**: Accept `[mode_shift.X]` as `[layer.X]` with trigger=X.
 
-### Decision: No layer priority
-Like QMK/ZMK - layers merge when multiple active. Conflicts warn at startup but both mappings trigger. User should avoid mapping same button in multiple layers.
+### Decision: Single-layer mode
+Only one layer can be active at a time. First activated layer takes priority. This simplifies conflict resolution and allows active layer to remap other layer triggers.
 
 ### Decision: Base remaps via InputDevice
 Base remaps (from `[remap]` section) output to InputDevice (keyboard/mouse), not to the gamepad Uinput. This allows remapping without affecting gamepad behavior.

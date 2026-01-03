@@ -59,15 +59,15 @@ The driver SHALL support layer definitions via `[layer.Name]` sections with trig
 - **THEN** layer becomes inactive
 - **AND** layer remaps stop
 
-### Requirement: Multi-Layer Support
+### Requirement: Single-Layer Mode
 
-The driver SHALL support multiple layers active simultaneously with merged mappings.
+The driver SHALL support single-layer mode where only one layer is active at a time.
 
-#### Scenario: Two layers active
-- **WHEN** [layer.RM] maps A to KEY_1
-- **AND** [layer.LM] maps B to KEY_2
-- **AND** both RM and LM are held
-- **THEN** A emits KEY_1 and B emits KEY_2 (both layers merge)
+#### Scenario: First layer takes priority
+- **WHEN** layer "aim" is activated (trigger held >= timeout)
+- **AND** user presses another layer trigger
+- **THEN** second layer does NOT activate
+- **AND** second layer trigger can be remapped by active layer
 
 #### Scenario: Layer inheritance
 - **WHEN** base [remap] has M1 = KEY_F13
@@ -131,8 +131,13 @@ The driver SHALL support tap-hold behavior for layer triggers (home row mod styl
 The driver SHALL support keyboard, mouse, and gyro modes within layers.
 
 #### Scenario: Gyro mouse in layer
-- **WHEN** layer contains `gyro = "mouse"`
+- **WHEN** layer contains `gyro = { mode = "mouse" }`
 - **THEN** gyro controls mouse cursor while layer active
+
+#### Scenario: Gyro joystick in layer
+- **WHEN** layer contains `gyro = { mode = "joystick" }`
+- **THEN** gyro values map to right stick axes while layer active
+- **AND** useful for games without native gyro support
 
 #### Scenario: Right stick mouse in layer
 - **WHEN** layer contains `right_stick = "mouse"`

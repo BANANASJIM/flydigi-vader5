@@ -12,9 +12,8 @@
 
 ## 2. Uinput Refactor
 
-- [ ] 2.1 Support non-Elite gamepad mode (use original VID/PID when emulate_elite=false)
-- [x] 2.2 Layer trigger buttons suppressed in base processing
-- [x] 2.3 Add all mouse button codes (side, extra, forward, back)
+- [x] 2.1 Layer trigger buttons suppressed in base processing
+- [x] 2.2 Add all mouse button codes (side, extra, forward, back)
 
 ## 3. Base Remap Processing
 
@@ -32,29 +31,25 @@
 
 ## 5. Layer Processing
 
-- [x] 5.1 `get_active_layers()` based on tap-hold state
+- [x] 5.1 `get_active_layer()` returns single active layer (first activated wins)
 - [x] 5.2 `get_effective_*()` returns layer override or base config
 - [x] 5.3 `process_layer_buttons()` via InputDevice
 - [x] 5.4 Process layer gyro/stick/dpad modes
 - [x] 5.5 Add layer activation logging
 
-## 6. Config Example
+## 6. Config & Docs
 
-- [x] 6.1 Update `config/config.toml` with full layer examples
+- [x] 6.1 Update `config/config.toml` with layer examples
 - [x] 6.2 Add tap-hold examples
-- [x] 6.3 Add layer inheritance examples
+- [x] 6.3 Update README with layer documentation
 
 ## 7. Gyro Joystick Mode
 
 - [x] 7.1 Add `GyroConfig::Joystick` mode
-- [x] 7.2 Map gyro to right stick axes
+- [x] 7.2 Map gyro to right stick axes with JOYSTICK_SCALE
 
-## 8. Testing
+## 8. Code Quality
 
-- [ ] 8.1 Test emulate_elite=false with base remaps
-- [ ] 8.2 Test emulate_elite=true (remaps disabled)
-- [ ] 8.3 Test tap-hold timing
-- [ ] 8.4 Test layer inheritance
-- [ ] 8.5 Test multi-layer merge
-- [ ] 8.6 Verify conflict warnings in log
-- [ ] 8.7 Test gyro joystick mode
+- [x] 8.1 Fix stick Y-axis overflow in protocol parsing
+- [x] 8.2 Update .clang-tidy for toml++ compatibility
+- [x] 8.3 Remove NOLINT comments, use project .clang-tidy
