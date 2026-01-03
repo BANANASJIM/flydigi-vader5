@@ -9,9 +9,9 @@
 #include <array>
 #include <atomic>
 #include <cstdlib>
+#include <iostream>
 #include <mutex>
 #include <optional>
-#include <print>
 #include <span>
 #include <thread>
 
@@ -513,10 +513,10 @@ void config_thread(vader5::Hidraw& hidraw_cfg) {
 auto open_hidraw_input() -> std::optional<vader5::Hidraw> {
     auto hidraw = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_INPUT);
     if (!hidraw) {
-        std::println(stderr, "Error: Failed to open hidraw (Interface 0)");
+        std::cerr << "Error: Failed to open hidraw (Interface 0)\n";
         return std::nullopt;
     }
-    std::println(stderr, "Hidraw opened (Interface 0)");
+    std::cerr << "Hidraw opened (Interface 0)\n";
     add_log("IF0: hidraw OK");
     return std::move(*hidraw);
 }
@@ -524,11 +524,11 @@ auto open_hidraw_input() -> std::optional<vader5::Hidraw> {
 auto open_hidraw_config() -> std::optional<vader5::Hidraw> {
     auto hidraw_cfg = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_CONFIG);
     if (!hidraw_cfg) {
-        std::println(stderr, "Warning: Failed to open hidraw (Interface 1)");
+        std::cerr << "Warning: Failed to open hidraw (Interface 1)\n";
         add_log("IF1: hidraw FAILED");
         return std::nullopt;
     }
-    std::println(stderr, "Hidraw opened (Interface 1)");
+    std::cerr << "Hidraw opened (Interface 1)\n";
     add_log("IF1: hidraw OK");
     return std::move(*hidraw_cfg);
 }
