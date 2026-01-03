@@ -45,14 +45,14 @@ Press LM
 │                    Base (Normal)                        │
 │  Xbox Elite gamepad, M1-M4 = Steam paddles             │
 └─────────────────────────────────────────────────────────┘
-        │                    │                    │
-     Hold LM              Hold RM              Hold M4
-        ▼                    ▼                    ▼
-   ┌─────────┐          ┌─────────┐          ┌─────────┐
-   │  aim    │          │  mouse  │          │gyro_stick│
-   │gyro+stick│         │stick    │          │gyro→stick│
-   │+scroll  │          │+arrows  │          └─────────┘
-   └─────────┘          └─────────┘
+        │                              │
+     Hold LM                        Hold RM
+        ▼                              ▼
+   ┌──────────────┐              ┌──────────────┐
+   │     aim      │              │    mouse     │
+   │ gyro + mouse │              │ stick mouse  │
+   │ scroll + pad │              │   + arrows   │
+   └──────────────┘              └──────────────┘
 
 Only one layer active at a time (first activated wins)
 ```
@@ -84,12 +84,9 @@ trigger = "RM"
 stick_right = { mode = "mouse", sensitivity = 1.5 }
 dpad = { mode = "arrows" }
 remap = { A = "mouse_left", B = "mouse_right" }
-
-# Hold M4 for gyro-to-stick (games without gyro)
-[layer.gyro_stick]
-trigger = "M4"
-gyro = { mode = "joystick", sensitivity = 1.0 }
 ```
+
+See [docs/configuration.md](docs/configuration.md) for full options.
 
 ## Steam Paddles
 
@@ -113,6 +110,15 @@ lsusb | grep 37d7
 # Debug tool
 sudo ./build/vader5-debug
 ```
+
+## Roadmap
+
+- [ ] Kernel driver (hid-flydigi) for native support
+- [ ] LED/lighting control
+- [ ] Onboard profile configuration (write to controller)
+- [ ] Bluetooth support
+- [ ] Trigger deadzone and curve settings
+- [ ] Macro support
 
 ## License
 

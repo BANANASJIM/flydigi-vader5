@@ -33,8 +33,3 @@ hold_timeout = 150
 stick_right = { mode = "mouse", sensitivity = 1.5 }
 dpad = { mode = "arrows" }
 remap = { A = "mouse_left", B = "mouse_right" }
-
-# Hold M4 for gyro-to-stick (games without gyro)
-[layer.gyro_stick]
-trigger = "M4"
-gyro = { mode = "joystick", sensitivity = 1.0 }
