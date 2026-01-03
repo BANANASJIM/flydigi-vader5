@@ -8,8 +8,8 @@
 namespace vader5 {
 
 namespace {
-constexpr std::array<std::string_view, 8> EXT_BUTTON_NAMES = {
-    "C", "Z", "M1", "M3", "M2", "M4", "LM", "RM"};
+constexpr std::array<std::string_view, 8> EXT_BUTTON_NAMES = {"C",  "Z",  "M1", "M3",
+                                                              "M2", "M4", "LM", "RM"};
 
 struct KeyEntry {
     std::string_view name;
@@ -114,8 +114,12 @@ constexpr std::array KEY_TABLE = {
 };
 
 auto parse_gyro_mode(std::string_view mode) -> GyroConfig::Mode {
-    if (mode == "mouse") { return GyroConfig::Mouse; }
-    if (mode == "joystick") { return GyroConfig::Joystick; }
+    if (mode == "mouse") {
+        return GyroConfig::Mouse;
+    }
+    if (mode == "joystick") {
+        return GyroConfig::Joystick;
+    }
     return GyroConfig::Off;
 }
 } // namespace
@@ -183,8 +187,8 @@ auto parse_mode_shift(const toml::table& tbl) -> ModeShiftConfig {
         ms.dpad_arrows = (dpad->get() == "arrows");
     }
     for (const auto& [key, val] : tbl) {
-        if (key == "gyro" || key == "right_stick" || key == "left_stick" ||
-            key == "dpad" || key == "scroll_sensitivity") {
+        if (key == "gyro" || key == "right_stick" || key == "left_stick" || key == "dpad" ||
+            key == "scroll_sensitivity") {
             continue;
         }
         if (const auto* str = val.as_string()) {

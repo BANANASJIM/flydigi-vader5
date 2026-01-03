@@ -10,7 +10,7 @@
 namespace vader5 {
 
 class Uinput {
-public:
+  public:
     static auto create(std::span<const std::optional<int>> ext_mappings,
                        const char* name = "Vader 5 Pro Virtual Gamepad") -> Result<Uinput>;
     ~Uinput();
@@ -20,11 +20,13 @@ public:
     Uinput(const Uinput&) = delete;
     auto operator=(const Uinput&) -> Uinput& = delete;
 
-    [[nodiscard]] auto fd() const noexcept -> int { return fd_; }
+    [[nodiscard]] auto fd() const noexcept -> int {
+        return fd_;
+    }
     auto emit(const GamepadState& state, const GamepadState& prev) const -> Result<void>;
     void sync() const;
 
-private:
+  private:
     explicit Uinput(int file_descriptor, std::span<const std::optional<int>> mappings);
     int fd_{-1};
     std::array<std::optional<int>, 8> ext_mappings_{};
@@ -35,7 +37,7 @@ private:
 
 // Separate device for mouse/keyboard to avoid Steam detection issues
 class InputDevice {
-public:
+  public:
     static auto create(const char* name = "Vader 5 Pro Mouse") -> Result<InputDevice>;
     ~InputDevice();
 
@@ -50,7 +52,7 @@ public:
     void key(int code, bool pressed) const;
     void sync() const;
 
-private:
+  private:
     explicit InputDevice(int fd) : fd_(fd) {}
     int fd_{-1};
 

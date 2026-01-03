@@ -130,10 +130,9 @@ auto Hidraw::parse_report_24g(std::span<const uint8_t> data) -> std::optional<Ga
     state.dpad = DPAD_MAP[misc & DPAD_MASK];
     state.buttons = static_cast<uint16_t>(
         (((misc >> 4) & 1) * PAD_START) | (((misc >> 5) & 1) * PAD_SELECT) |
-        (((misc >> 6) & 1) * PAD_L3) | (((misc >> 7) & 1) * PAD_R3) |
-        (((btns >> 0) & 1) * PAD_LB) | (((btns >> 1) & 1) * PAD_RB) |
-        (((btns >> 3) & 1) * PAD_MODE) | (((btns >> 4) & 1) * PAD_A) |
-        (((btns >> 5) & 1) * PAD_B) | (((btns >> 6) & 1) * PAD_X) |
+        (((misc >> 6) & 1) * PAD_L3) | (((misc >> 7) & 1) * PAD_R3) | (((btns >> 0) & 1) * PAD_LB) |
+        (((btns >> 1) & 1) * PAD_RB) | (((btns >> 3) & 1) * PAD_MODE) |
+        (((btns >> 4) & 1) * PAD_A) | (((btns >> 5) & 1) * PAD_B) | (((btns >> 6) & 1) * PAD_X) |
         (((btns >> 7) & 1) * PAD_Y));
     state.left_trigger = data[OFF_LT];
     state.right_trigger = data[OFF_RT];

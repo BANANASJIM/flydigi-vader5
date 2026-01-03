@@ -7,7 +7,7 @@
 namespace vader5 {
 
 class Gamepad {
-public:
+  public:
     static auto open(const Config& cfg) -> Result<Gamepad>;
     ~Gamepad();
 
@@ -18,12 +18,14 @@ public:
 
     auto poll() -> Result<void>;
     auto send_rumble(uint8_t left, uint8_t right) -> bool;
-    [[nodiscard]] auto fd() const noexcept -> int { return hidraw_.fd(); }
+    [[nodiscard]] auto fd() const noexcept -> int {
+        return hidraw_.fd();
+    }
 
-private:
+  private:
     Gamepad(Hidraw&& hid, Uinput&& uinput, std::optional<InputDevice>&& input, Config cfg)
-        : hidraw_(std::move(hid)), uinput_(std::move(uinput)),
-          input_(std::move(input)), config_(std::move(cfg)) {}
+        : hidraw_(std::move(hid)), uinput_(std::move(uinput)), input_(std::move(input)),
+          config_(std::move(cfg)) {}
 
     void process_gyro(const GamepadState& state);
     void process_mouse_stick(const GamepadState& state);

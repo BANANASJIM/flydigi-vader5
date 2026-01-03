@@ -17,10 +17,10 @@
 
 namespace {
 using ftxui::bgcolor;
-using ftxui::border;
 using ftxui::bold;
-using ftxui::center;
+using ftxui::border;
 using ftxui::CatchEvent;
+using ftxui::center;
 using ftxui::Color;
 using ftxui::color;
 using ftxui::dim;
@@ -151,7 +151,8 @@ void send_test_mode(vader5::Hidraw& hidraw_cfg, bool enable) {
     pkt.at(9) = enable ? MODE_TEST : MODE_NORMAL;
     auto result = hidraw_cfg.write(pkt);
     if (result) {
-        add_log(std::string("Test mode ") + (enable ? "ON" : "OFF") + ": " + std::to_string(*result) + "B");
+        add_log(std::string("Test mode ") + (enable ? "ON" : "OFF") + ": " +
+                std::to_string(*result) + "B");
     } else {
         add_log(std::string("Test mode ") + (enable ? "ON" : "OFF") + ": FAILED");
     }
@@ -350,27 +351,48 @@ constexpr uint8_t EP2_B12_R3 = 0x80;
 
 auto parse_ep2_buttons(uint8_t b11, uint8_t b12) -> uint16_t {
     uint16_t btns = 0;
-    if ((b11 & EP2_B11_A) != 0) { btns |= vader5::PAD_A; }
-    if ((b11 & EP2_B11_B) != 0) { btns |= vader5::PAD_B; }
-    if ((b11 & EP2_B11_X) != 0) { btns |= vader5::PAD_X; }
-    if ((b12 & EP2_B12_Y) != 0) { btns |= vader5::PAD_Y; }
-    if ((b12 & EP2_B12_LB) != 0) { btns |= vader5::PAD_LB; }
-    if ((b12 & EP2_B12_RB) != 0) { btns |= vader5::PAD_RB; }
-    if ((b11 & EP2_B11_SELECT) != 0) { btns |= vader5::PAD_SELECT; }
-    if ((b12 & EP2_B12_START) != 0) { btns |= vader5::PAD_START; }
-    if ((b12 & EP2_B12_L3) != 0) { btns |= vader5::PAD_L3; }
-    if ((b12 & EP2_B12_R3) != 0) { btns |= vader5::PAD_R3; }
+    if ((b11 & EP2_B11_A) != 0) {
+        btns |= vader5::PAD_A;
+    }
+    if ((b11 & EP2_B11_B) != 0) {
+        btns |= vader5::PAD_B;
+    }
+    if ((b11 & EP2_B11_X) != 0) {
+        btns |= vader5::PAD_X;
+    }
+    if ((b12 & EP2_B12_Y) != 0) {
+        btns |= vader5::PAD_Y;
+    }
+    if ((b12 & EP2_B12_LB) != 0) {
+        btns |= vader5::PAD_LB;
+    }
+    if ((b12 & EP2_B12_RB) != 0) {
+        btns |= vader5::PAD_RB;
+    }
+    if ((b11 & EP2_B11_SELECT) != 0) {
+        btns |= vader5::PAD_SELECT;
+    }
+    if ((b12 & EP2_B12_START) != 0) {
+        btns |= vader5::PAD_START;
+    }
+    if ((b12 & EP2_B12_L3) != 0) {
+        btns |= vader5::PAD_L3;
+    }
+    if ((b12 & EP2_B12_R3) != 0) {
+        btns |= vader5::PAD_R3;
+    }
     return btns;
 }
 
 auto parse_ep2_dpad(uint8_t b11) -> uint8_t {
     const uint8_t dpad_bits = b11 & 0x0F;
     constexpr std::array<uint8_t, 16> DPAD_MAP = {
-        vader5::DPAD_NONE, vader5::DPAD_UP, vader5::DPAD_RIGHT, vader5::DPAD_UP_RIGHT,
-        vader5::DPAD_DOWN, vader5::DPAD_NONE, vader5::DPAD_DOWN_RIGHT, vader5::DPAD_NONE,
-        vader5::DPAD_LEFT, vader5::DPAD_UP_LEFT, vader5::DPAD_NONE, vader5::DPAD_NONE,
-        vader5::DPAD_DOWN_LEFT, vader5::DPAD_NONE, vader5::DPAD_NONE, vader5::DPAD_NONE
-    };
+        vader5::DPAD_NONE,       vader5::DPAD_UP,   vader5::DPAD_RIGHT,
+        vader5::DPAD_UP_RIGHT,   vader5::DPAD_DOWN, vader5::DPAD_NONE,
+        vader5::DPAD_DOWN_RIGHT, vader5::DPAD_NONE, vader5::DPAD_LEFT,
+        vader5::DPAD_UP_LEFT,    vader5::DPAD_NONE, vader5::DPAD_NONE,
+        vader5::DPAD_DOWN_LEFT,  vader5::DPAD_NONE, vader5::DPAD_NONE,
+        vader5::DPAD_NONE};
     return DPAD_MAP.at(dpad_bits);
 }
 
@@ -412,19 +434,21 @@ Element render_imu(const ImuData& imu, bool test_mode) {
     auto axis = [&](const std::string& name, int16_t val, Color neg, Color pos) {
         std::array<char, 16> buf{};
         (void)std::snprintf(buf.data(), buf.size(), "%+6d", val);
-        return hbox({text(name + ": "), bar(val, RANGE, neg, pos), text(" " + std::string(buf.data()))});
+        return hbox(
+            {text(name + ": "), bar(val, RANGE, neg, pos), text(" " + std::string(buf.data()))});
     };
 
     return vbox({
-        text("Gyroscope") | bold,
-        axis("X", imu.gyro_x, Color::Red, Color::Green),
-        axis("Y", imu.gyro_y, Color::Red, Color::Green),
-        axis("Z", imu.gyro_z, Color::Red, Color::Green),
-        text("Accelerometer (4096=1g)") | bold,
-        axis("X", imu.accel_x, Color::Blue, Color::Yellow),
-        axis("Y", imu.accel_y, Color::Blue, Color::Yellow),
-        axis("Z", imu.accel_z, Color::Blue, Color::Yellow),
-    }) | border;
+               text("Gyroscope") | bold,
+               axis("X", imu.gyro_x, Color::Red, Color::Green),
+               axis("Y", imu.gyro_y, Color::Red, Color::Green),
+               axis("Z", imu.gyro_z, Color::Red, Color::Green),
+               text("Accelerometer (4096=1g)") | bold,
+               axis("X", imu.accel_x, Color::Blue, Color::Yellow),
+               axis("Y", imu.accel_y, Color::Blue, Color::Yellow),
+               axis("Z", imu.accel_z, Color::Blue, Color::Yellow),
+           }) |
+           border;
 }
 
 void parse_ext_report(std::span<const uint8_t, READ_BUFFER_SIZE> data) {
@@ -556,40 +580,42 @@ auto main() -> int {
         title += " ═══";
 
         return vbox({
-            text(title) | bold | center,
-            text(""),
-            render_shoulder_buttons(st.buttons, st.left_trigger, st.right_trigger) | center,
-            text(""),
-            render_center_buttons(st.buttons) | center,
-            text(""),
-            hbox({
-                render_stick("L Stick", st.left_x, st.left_y, l3),
-                text("    "),
-                render_dpad(st.dpad),
-                text("    "),
-                render_face_buttons(st.buttons),
-                text("    "),
-                render_stick("R Stick", st.right_x, st.right_y, r3),
-            }) | center,
-            text(""),
-            separator(),
-            render_ext_buttons(ext1, ext2, test_mode) | center,
-            separator(),
-            render_imu(imu, test_mode) | center,
-            text("[T] test mode  [Q] quit") | dim | center,
-            separator(),
-            vbox([&] {
-                std::vector<Element> log_elems;
-                log_elems.reserve(logs.size() + 1);
-                for (const auto& msg : logs) {
-                    log_elems.push_back(text(msg) | dim);
-                }
-                if (log_elems.empty()) {
-                    log_elems.push_back(text("Ready") | dim);
-                }
-                return log_elems;
-            }()) | center,
-        }) | border | center;
+                   text(title) | bold | center,
+                   text(""),
+                   render_shoulder_buttons(st.buttons, st.left_trigger, st.right_trigger) | center,
+                   text(""),
+                   render_center_buttons(st.buttons) | center,
+                   text(""),
+                   hbox({
+                       render_stick("L Stick", st.left_x, st.left_y, l3),
+                       text("    "),
+                       render_dpad(st.dpad),
+                       text("    "),
+                       render_face_buttons(st.buttons),
+                       text("    "),
+                       render_stick("R Stick", st.right_x, st.right_y, r3),
+                   }) | center,
+                   text(""),
+                   separator(),
+                   render_ext_buttons(ext1, ext2, test_mode) | center,
+                   separator(),
+                   render_imu(imu, test_mode) | center,
+                   text("[T] test mode  [Q] quit") | dim | center,
+                   separator(),
+                   vbox([&] {
+                       std::vector<Element> log_elems;
+                       log_elems.reserve(logs.size() + 1);
+                       for (const auto& msg : logs) {
+                           log_elems.push_back(text(msg) | dim);
+                       }
+                       if (log_elems.empty()) {
+                           log_elems.push_back(text("Ready") | dim);
+                       }
+                       return log_elems;
+                   }()) |
+                       center,
+               }) |
+               border | center;
     });
 
     auto component = CatchEvent(renderer, [&](const Event& event) {
@@ -602,7 +628,8 @@ auto main() -> int {
             const char ch = event.character().front();
             if (ch == 't' || ch == 'T') {
                 bool expected = g_test_mode.load();
-                while (!g_test_mode.compare_exchange_weak(expected, !expected)) {}
+                while (!g_test_mode.compare_exchange_weak(expected, !expected)) {
+                }
                 g_test_mode_changed.store(true);
                 return true;
             }

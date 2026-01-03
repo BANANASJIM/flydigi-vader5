@@ -5,7 +5,7 @@
 namespace vader5 {
 
 class Mouse {
-public:
+  public:
     static auto create(const char* name = "Vader 5 Pro Virtual Mouse") -> Result<Mouse>;
     ~Mouse();
 
@@ -19,7 +19,7 @@ public:
     void scroll(int delta) const;
     void sync() const;
 
-private:
+  private:
     explicit Mouse(int fd) : fd_(fd) {}
     int fd_{-1};
 };

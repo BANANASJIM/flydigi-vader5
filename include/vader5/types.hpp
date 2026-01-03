@@ -9,8 +9,7 @@ namespace vader5 {
 
 using Error = std::error_code;
 
-template <typename T>
-using Result = std::expected<T, Error>;
+template <typename T> using Result = std::expected<T, Error>;
 
 constexpr uint16_t VENDOR_ID = 0x37d7;
 constexpr uint16_t PRODUCT_ID = 0x2401;

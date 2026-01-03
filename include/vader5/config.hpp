@@ -23,7 +23,7 @@ struct GyroConfig {
     float sensitivity_y{1.5f};
     int deadzone{0};
     float smoothing{0.3f};
-    float curve{1.0f};  // 1.0=linear, <1=slow start, >1=fast start
+    float curve{1.0f}; // 1.0=linear, <1=slow start, >1=fast start
     bool invert_x{false};
     bool invert_y{false};
 };

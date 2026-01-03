@@ -20,19 +20,19 @@ constexpr int TRIGGER_MIN = 0;
 constexpr int TRIGGER_MAX = 255;
 constexpr int EXT_BUTTON_COUNT = 8;
 constexpr std::array<uint8_t, 8> EXT_MASKS = {EXT_C,  EXT_Z,  EXT_M1, EXT_M2,
-                                               EXT_M3, EXT_M4, EXT_LM, EXT_RM};
+                                              EXT_M3, EXT_M4, EXT_LM, EXT_RM};
 // Default codes: M1-M4 use BTN_TRIGGER_HAPPY5-8 to match xpad Elite paddles
 // Note: Hardware bit3=M3, bit4=M2 (reversed from label)
 constexpr std::array<int, 8> DEFAULT_EXT_CODES = {
-    BTN_TRIGGER_HAPPY1, BTN_TRIGGER_HAPPY2,  // C, Z
-    BTN_TRIGGER_HAPPY5, BTN_TRIGGER_HAPPY7,  // M1, M3 (Elite P1, P3)
-    BTN_TRIGGER_HAPPY6, BTN_TRIGGER_HAPPY8,  // M2, M4 (Elite P2, P4)
-    BTN_TRIGGER_HAPPY3, BTN_TRIGGER_HAPPY4,  // LM, RM
+    BTN_TRIGGER_HAPPY1, BTN_TRIGGER_HAPPY2, // C, Z
+    BTN_TRIGGER_HAPPY5, BTN_TRIGGER_HAPPY7, // M1, M3 (Elite P1, P3)
+    BTN_TRIGGER_HAPPY6, BTN_TRIGGER_HAPPY8, // M2, M4 (Elite P2, P4)
+    BTN_TRIGGER_HAPPY3, BTN_TRIGGER_HAPPY4, // LM, RM
 };
 } // namespace
 
-auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
-                    const char* name) -> Result<Uinput> {
+auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char* name)
+    -> Result<Uinput> {
     const int file_descriptor = ::open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (file_descriptor < 0) {
         return std::unexpected(std::error_code(errno, std::system_category()));
@@ -116,7 +116,8 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
 Uinput::Uinput(int file_descriptor, std::span<const std::optional<int>> mappings)
     : fd_(file_descriptor) {
     auto count = std::min(mappings.size(), ext_mappings_.size());
-    std::ranges::copy_n(mappings.begin(), static_cast<std::ptrdiff_t>(count), ext_mappings_.begin());
+    std::ranges::copy_n(mappings.begin(), static_cast<std::ptrdiff_t>(count),
+                        ext_mappings_.begin());
 }
 
 Uinput::~Uinput() {
@@ -338,7 +339,9 @@ auto InputDevice::operator=(InputDevice&& other) noexcept -> InputDevice& {
 }
 
 void InputDevice::emit_rel(int code, int value) const {
-    if (value == 0) { return; }
+    if (value == 0) {
+        return;
+    }
     input_event event{};
     event.type = EV_REL;
     event.code = static_cast<uint16_t>(code);

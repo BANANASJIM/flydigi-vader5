@@ -89,7 +89,8 @@ void Mouse::button(int code, bool pressed) const {
 }
 
 void Mouse::scroll(int delta) const {
-    if (delta == 0) return;
+    if (delta == 0)
+        return;
     input_event ev{};
     ev.type = EV_REL;
     ev.code = REL_WHEEL;

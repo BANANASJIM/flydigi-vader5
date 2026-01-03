@@ -9,7 +9,7 @@
 namespace vader5 {
 
 class Hidraw {
-public:
+  public:
     static auto open(uint16_t vid, uint16_t pid, int iface = 0) -> Result<Hidraw>;
     ~Hidraw();
 
@@ -18,13 +18,15 @@ public:
     Hidraw(const Hidraw&) = delete;
     auto operator=(const Hidraw&) -> Hidraw& = delete;
 
-    [[nodiscard]] auto fd() const noexcept -> int { return fd_; }
+    [[nodiscard]] auto fd() const noexcept -> int {
+        return fd_;
+    }
     [[nodiscard]] auto read(std::span<uint8_t> buf) const -> Result<size_t>;
     [[nodiscard]] auto write(std::span<const uint8_t> buf) const -> Result<size_t>;
     [[nodiscard]] static auto parse_report(std::span<const uint8_t> data)
         -> std::optional<GamepadState>;
 
-private:
+  private:
     explicit Hidraw(int file_descriptor) : fd_(file_descriptor) {}
     int fd_{-1};
 
