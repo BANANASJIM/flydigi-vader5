@@ -83,7 +83,6 @@ See [config.toml](config.toml) for all options.
 - [x] Gyro-to-mouse
 - [x] Mode shift
 - [x] Button remapping
-- [ ] DSU server for Steam motion controls
 - [ ] Kernel HID driver
 - [ ] LED control
 
