@@ -31,8 +31,8 @@ auto Mouse::create(const char* name) -> Result<Mouse> {
     uinput_setup setup{};
     std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
     setup.id.bustype = BUS_USB;
-    setup.id.vendor = 0x37d7;
-    setup.id.product = 0x2402;
+    setup.id.vendor = VENDOR_ID;
+    setup.id.product = PRODUCT_ID;
     setup.id.version = 1;
 
     (void)ioctl(fd, UI_DEV_SETUP, &setup);
@@ -89,8 +89,9 @@ void Mouse::button(int code, bool pressed) const {
 }
 
 void Mouse::scroll(int delta) const {
-    if (delta == 0)
+    if (delta == 0) {
         return;
+    }
     input_event ev{};
     ev.type = EV_REL;
     ev.code = REL_WHEEL;
