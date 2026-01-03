@@ -104,15 +104,18 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
     setup.id.version = 1;
 
     (void)ioctl(file_descriptor, UI_DEV_SETUP, &setup);
-    (void)ioctl(file_descriptor, UI_DEV_CREATE);
+    if (ioctl(file_descriptor, UI_DEV_CREATE) < 0) {
+        ::close(file_descriptor);
+        return std::unexpected(std::error_code(errno, std::system_category()));
+    }
 
     return Uinput(file_descriptor, ext_mappings);
 }
 
 Uinput::Uinput(int file_descriptor, std::span<const std::optional<int>> mappings)
     : fd_(file_descriptor) {
-    auto n = std::min(mappings.size(), ext_mappings_.size());
-    std::ranges::copy_n(mappings.begin(), n, ext_mappings_.begin());
+    auto count = std::min(mappings.size(), ext_mappings_.size());
+    std::ranges::copy_n(mappings.begin(), static_cast<std::ptrdiff_t>(count), ext_mappings_.begin());
 }
 
 Uinput::~Uinput() {
@@ -301,7 +304,10 @@ auto InputDevice::create(const char* name) -> Result<InputDevice> {
     setup.id.version = 1;
 
     (void)ioctl(fd, UI_DEV_SETUP, &setup);
-    (void)ioctl(fd, UI_DEV_CREATE);
+    if (ioctl(fd, UI_DEV_CREATE) < 0) {
+        ::close(fd);
+        return std::unexpected(std::error_code(errno, std::system_category()));
+    }
 
     return InputDevice(fd);
 }
@@ -330,7 +336,7 @@ auto InputDevice::operator=(InputDevice&& other) noexcept -> InputDevice& {
 }
 
 void InputDevice::emit_rel(int code, int value) const {
-    if (value == 0) return;
+    if (value == 0) { return; }
     input_event event{};
     event.type = EV_REL;
     event.code = static_cast<uint16_t>(code);

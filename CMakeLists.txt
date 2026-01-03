@@ -39,18 +39,18 @@ endif()
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 add_executable(vader5d
-    src/main.cpp
+    src/daemon/main.cpp
     src/hidraw.cpp
-    src/transport.cpp
     src/uinput.cpp
     src/gamepad.cpp
     src/config.cpp
+    src/mouse.cpp
 )
-target_include_directories(vader5d PRIVATE include ${LIBUSB_INCLUDE_DIRS})
-target_link_libraries(vader5d PRIVATE tomlplusplus::tomlplusplus ${LIBUSB_LIBRARIES})
+target_include_directories(vader5d PRIVATE include)
+target_link_libraries(vader5d PRIVATE tomlplusplus::tomlplusplus)
 
 add_executable(vader5-debug
-    src/debug.cpp
+    src/tools/debug.cpp
     src/hidraw.cpp
     src/transport.cpp
 )

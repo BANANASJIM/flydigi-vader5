@@ -4,9 +4,11 @@
 
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstring>
 #include <print>
+#include <thread>
 
 #include <poll.h>
 
@@ -18,6 +20,7 @@ void handle_signal(int /*signum*/) {
 }
 
 constexpr int POLL_TIMEOUT_MS = 100;
+constexpr auto RETRY_INTERVAL = std::chrono::seconds(2);
 } // namespace
 
 auto main(int argc, char* argv[]) -> int {
@@ -25,43 +28,54 @@ auto main(int argc, char* argv[]) -> int {
     (void)std::signal(SIGTERM, handle_signal);
 
     vader5::Config cfg;
-    std::string config_path = (argc > 1) ? argv[1] : vader5::Config::default_path();
+    std::string config_path = (argc > 1) ? std::string(argv[1]) : vader5::Config::default_path(); // NOLINT
     if (auto loaded = vader5::Config::load(config_path); loaded) {
         cfg = *loaded;
         std::println("vader5d: Loaded config from {}", config_path);
-        std::println("vader5d: gyro.mode = {} (0=off, 1=mouse, 2=joystick)", static_cast<int>(cfg.gyro.mode));
-        std::println("vader5d: gyro.sensitivity_x = {}, sensitivity_y = {}", cfg.gyro.sensitivity_x, cfg.gyro.sensitivity_y);
-        std::println("vader5d: gyro.deadzone = {}, smoothing = {}", cfg.gyro.deadzone, cfg.gyro.smoothing);
     } else {
         std::println("vader5d: No config at {}, using defaults", config_path);
     }
 
-    std::println("vader5d: Opening Vader 5 Pro (VID:{:04x} PID:{:04x})...", vader5::VENDOR_ID,
-                 vader5::PRODUCT_ID);
-
-    auto gamepad = vader5::Gamepad::open(cfg);
-    if (!gamepad) {
-        std::println(stderr, "vader5d: Failed to open device: {}", gamepad.error().message());
-        return 1;
-    }
-
-    std::println("vader5d: Virtual gamepad created, running...");
-
-    pollfd pfd{.fd = gamepad->fd(), .events = POLLIN, .revents = 0};
+    std::println("vader5d: Waiting for Vader 5 Pro (VID:{:04x} PID:{:04x})...",
+                 vader5::VENDOR_ID, vader5::PRODUCT_ID);
 
     while (g_running.load(std::memory_order_relaxed)) {
-        const int poll_result = poll(&pfd, 1, POLL_TIMEOUT_MS);
-        if (poll_result < 0 && errno != EINTR) {
-            std::println(stderr, "vader5d: poll error: {}", std::strerror(errno));
-            break;
+        auto gamepad = vader5::Gamepad::open(cfg);
+        if (!gamepad) {
+            std::this_thread::sleep_for(RETRY_INTERVAL);
+            continue;
         }
 
-        if (poll_result > 0 && (static_cast<unsigned>(pfd.revents) & POLLIN) != 0) {
-            auto result = gamepad->poll();
-            if (!result && result.error() != std::errc::resource_unavailable_try_again) {
-                std::println(stderr, "vader5d: Read error: {}", result.error().message());
+        std::println("vader5d: Device connected, running...");
+        pollfd pfd{.fd = gamepad->fd(), .events = POLLIN, .revents = 0};
+
+        while (g_running.load(std::memory_order_relaxed)) {
+            const int ret = poll(&pfd, 1, POLL_TIMEOUT_MS);
+            if (ret < 0 && errno != EINTR) {
+                std::println(stderr, "vader5d: poll error: {}", std::strerror(errno));
+                break;
+            }
+
+            if (ret > 0 && (pfd.revents & POLLIN) != 0) {
+                auto result = gamepad->poll();
+                if (!result) {
+                    auto ec = result.error();
+                    if (ec == std::errc::resource_unavailable_try_again) { continue; }
+                    if (ec == std::errc::no_such_device || ec == std::errc::io_error) {
+                        std::println("vader5d: Device disconnected");
+                        break;
+                    }
+                    std::println(stderr, "vader5d: Read error: {}", ec.message());
+                }
+            }
+
+            if ((pfd.revents & (POLLHUP | POLLERR)) != 0) {
+                std::println("vader5d: Device disconnected");
+                break;
             }
         }
+
+        std::println("vader5d: Waiting for reconnection...");
     }
 
     std::println("vader5d: Shutting down");

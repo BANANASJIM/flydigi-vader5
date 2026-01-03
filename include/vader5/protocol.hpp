@@ -91,6 +91,15 @@ inline auto parse(std::span<const uint8_t> data) -> std::optional<GamepadState> 
     state.ext_buttons = data[OFF_EXT1];
     state.ext_buttons2 = data[OFF_EXT2];
 
+    if (data.size() >= FULL_SIZE) {
+        state.gyro_x = read_s16(&data[OFF_GYRO]);
+        state.gyro_y = read_s16(&data[OFF_GYRO + 2]);
+        state.gyro_z = read_s16(&data[OFF_GYRO + 4]);
+        state.accel_x = read_s16(&data[OFF_ACCEL]);
+        state.accel_y = read_s16(&data[OFF_ACCEL + 2]);
+        state.accel_z = read_s16(&data[OFF_ACCEL + 4]);
+    }
+
     return state;
 }
 } // namespace ext_report

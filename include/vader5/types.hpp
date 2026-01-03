@@ -31,6 +31,13 @@ struct GamepadState {
     uint8_t dpad{};
     uint8_t ext_buttons{};
     uint8_t ext_buttons2{};
+
+    int16_t gyro_x{};
+    int16_t gyro_y{};
+    int16_t gyro_z{};
+    int16_t accel_x{};
+    int16_t accel_y{};
+    int16_t accel_z{};
 };
 
 // Gamepad button masks (avoid linux/input.h macro collision)

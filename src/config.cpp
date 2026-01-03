@@ -114,8 +114,8 @@ constexpr std::array KEY_TABLE = {
 };
 
 auto parse_gyro_mode(std::string_view mode) -> GyroConfig::Mode {
-    if (mode == "mouse") return GyroConfig::Mouse;
-    if (mode == "joystick") return GyroConfig::Joystick;
+    if (mode == "mouse") { return GyroConfig::Mouse; }
+    if (mode == "joystick") { return GyroConfig::Joystick; }
     return GyroConfig::Off;
 }
 } // namespace
@@ -154,21 +154,40 @@ auto Config::default_path() -> std::string {
 
 namespace {
 auto parse_stick_config(const toml::table& tbl, StickConfig& cfg) {
-    if (auto* dz = tbl["deadzone"].as_integer()) cfg.deadzone = static_cast<int>(dz->get());
-    if (auto* am = tbl["as_mouse"].as_boolean()) cfg.as_mouse = am->get();
-    if (auto* ms = tbl["mouse_sensitivity"].as_floating_point()) cfg.mouse_sensitivity = static_cast<float>(ms->get());
+    if (const auto* dz = tbl["deadzone"].as_integer()) {
+        cfg.deadzone = static_cast<int>(dz->get());
+    }
+    if (const auto* am = tbl["as_mouse"].as_boolean()) {
+        cfg.as_mouse = am->get();
+    }
+    if (const auto* ms = tbl["mouse_sensitivity"].as_floating_point()) {
+        cfg.mouse_sensitivity = static_cast<float>(ms->get());
+    }
 }
 
 auto parse_mode_shift(const toml::table& tbl) -> ModeShiftConfig {
     ModeShiftConfig ms;
-    if (auto* gyro = tbl["gyro"].as_string()) ms.gyro = parse_gyro_mode(gyro->get());
-    if (auto* rsm = tbl["right_stick"].as_string()) ms.right_stick_mouse = (rsm->get() == "mouse");
-    if (auto* lsm = tbl["left_stick"].as_string()) ms.left_stick_scroll = (lsm->get() == "scroll");
-    if (auto* ss = tbl["scroll_sensitivity"].as_floating_point()) ms.scroll_sensitivity = static_cast<float>(ss->get());
-    if (auto* dpad = tbl["dpad"].as_string()) ms.dpad_arrows = (dpad->get() == "arrows");
+    if (const auto* gyro = tbl["gyro"].as_string()) {
+        ms.gyro = parse_gyro_mode(gyro->get());
+    }
+    if (const auto* rsm = tbl["right_stick"].as_string()) {
+        ms.right_stick_mouse = (rsm->get() == "mouse");
+    }
+    if (const auto* lsm = tbl["left_stick"].as_string()) {
+        ms.left_stick_scroll = (lsm->get() == "scroll");
+    }
+    if (const auto* scroll_sens = tbl["scroll_sensitivity"].as_floating_point()) {
+        ms.scroll_sensitivity = static_cast<float>(scroll_sens->get());
+    }
+    if (const auto* dpad = tbl["dpad"].as_string()) {
+        ms.dpad_arrows = (dpad->get() == "arrows");
+    }
     for (const auto& [key, val] : tbl) {
-        if (key == "gyro" || key == "right_stick" || key == "left_stick" || key == "dpad" || key == "scroll_sensitivity") continue;
-        if (auto* str = val.as_string()) {
+        if (key == "gyro" || key == "right_stick" || key == "left_stick" ||
+            key == "dpad" || key == "scroll_sensitivity") {
+            continue;
+        }
+        if (const auto* str = val.as_string()) {
             if (auto target = parse_remap_target(str->get())) {
                 ms.remaps[std::string(key)] = *target;
             }
@@ -189,17 +208,15 @@ auto Config::load(const std::string& path) -> Result<Config> {
     }
 
     // [remap] section - button remapping
-    if (auto* remap = tbl["remap"].as_table()) {
+    if (const auto* remap = tbl["remap"].as_table()) {
         for (const auto& [key, val] : *remap) {
-            if (auto* str = val.as_string()) {
-                // Check if it's an ext button (for backwards compat)
+            if (const auto* str = val.as_string()) {
                 for (size_t idx = 0; idx < EXT_BUTTON_NAMES.size(); ++idx) {
                     if (key == EXT_BUTTON_NAMES[idx]) {
                         cfg.ext_mappings[idx] = keycode_from_name(str->get());
                         break;
                     }
                 }
-                // Store in general remaps
                 if (auto target = parse_remap_target(str->get())) {
                     cfg.button_remaps[std::string(key)] = *target;
                 }
@@ -208,30 +225,50 @@ auto Config::load(const std::string& path) -> Result<Config> {
     }
 
     // [gyro] section
-    if (auto* gyro = tbl["gyro"].as_table()) {
-        if (auto* mode = (*gyro)["mode"].as_string()) cfg.gyro.mode = parse_gyro_mode(mode->get());
-        if (auto* sens = (*gyro)["sensitivity"].as_floating_point()) {
-            auto val = static_cast<float>(sens->get());
+    if (const auto* gyro = tbl["gyro"].as_table()) {
+        if (const auto* mode = (*gyro)["mode"].as_string()) {
+            cfg.gyro.mode = parse_gyro_mode(mode->get());
+        }
+        if (const auto* sens = (*gyro)["sensitivity"].as_floating_point()) {
+            const auto val = static_cast<float>(sens->get());
             cfg.gyro.sensitivity_x = val;
             cfg.gyro.sensitivity_y = val;
         }
-        if (auto* sx = (*gyro)["sensitivity_x"].as_floating_point()) cfg.gyro.sensitivity_x = static_cast<float>(sx->get());
-        if (auto* sy = (*gyro)["sensitivity_y"].as_floating_point()) cfg.gyro.sensitivity_y = static_cast<float>(sy->get());
-        if (auto* dz = (*gyro)["deadzone"].as_integer()) cfg.gyro.deadzone = static_cast<int>(dz->get());
-        if (auto* sm = (*gyro)["smoothing"].as_floating_point()) cfg.gyro.smoothing = static_cast<float>(sm->get());
-        if (auto* cv = (*gyro)["curve"].as_floating_point()) cfg.gyro.curve = static_cast<float>(cv->get());
-        if (auto* ix = (*gyro)["invert_x"].as_boolean()) cfg.gyro.invert_x = ix->get();
-        if (auto* iy = (*gyro)["invert_y"].as_boolean()) cfg.gyro.invert_y = iy->get();
+        if (const auto* sx = (*gyro)["sensitivity_x"].as_floating_point()) {
+            cfg.gyro.sensitivity_x = static_cast<float>(sx->get());
+        }
+        if (const auto* sy = (*gyro)["sensitivity_y"].as_floating_point()) {
+            cfg.gyro.sensitivity_y = static_cast<float>(sy->get());
+        }
+        if (const auto* dz = (*gyro)["deadzone"].as_integer()) {
+            cfg.gyro.deadzone = static_cast<int>(dz->get());
+        }
+        if (const auto* sm = (*gyro)["smoothing"].as_floating_point()) {
+            cfg.gyro.smoothing = static_cast<float>(sm->get());
+        }
+        if (const auto* cv = (*gyro)["curve"].as_floating_point()) {
+            cfg.gyro.curve = static_cast<float>(cv->get());
+        }
+        if (const auto* ix = (*gyro)["invert_x"].as_boolean()) {
+            cfg.gyro.invert_x = ix->get();
+        }
+        if (const auto* iy = (*gyro)["invert_y"].as_boolean()) {
+            cfg.gyro.invert_y = iy->get();
+        }
     }
 
     // [stick.left] and [stick.right]
-    if (auto* left = tbl["stick"]["left"].as_table()) parse_stick_config(*left, cfg.left_stick);
-    if (auto* right = tbl["stick"]["right"].as_table()) parse_stick_config(*right, cfg.right_stick);
+    if (const auto* left = tbl["stick"]["left"].as_table()) {
+        parse_stick_config(*left, cfg.left_stick);
+    }
+    if (const auto* right = tbl["stick"]["right"].as_table()) {
+        parse_stick_config(*right, cfg.right_stick);
+    }
 
     // [mode_shift.XXX] sections
-    if (auto* mode_shift = tbl["mode_shift"].as_table()) {
+    if (const auto* mode_shift = tbl["mode_shift"].as_table()) {
         for (const auto& [key, val] : *mode_shift) {
-            if (auto* sub = val.as_table()) {
+            if (const auto* sub = val.as_table()) {
                 cfg.mode_shifts[std::string(key)] = parse_mode_shift(*sub);
             }
         }
