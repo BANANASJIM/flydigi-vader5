@@ -10,15 +10,11 @@
 #include <cstring>
 
 namespace vader5 {
-
-// Suppress warn_unused_result for write() calls
-#define IGNORE_RESULT(x) \
-    do {                 \
-        if (x) {         \
-        }                \
-    } while (0)
-
 namespace {
+
+inline void write_event(int fd, const input_event& ev) {
+    if (::write(fd, &ev, sizeof(ev)) < 0) {}
+}
 constexpr int AXIS_MIN = -32768;
 constexpr int AXIS_MAX = 32767;
 constexpr int AXIS_FUZZ = 16;
@@ -156,7 +152,7 @@ void Uinput::emit_key(int code, int value) const {
     event.type = EV_KEY;
     event.code = static_cast<uint16_t>(code);
     event.value = value;
-    IGNORE_RESULT(::write(fd_, &event, sizeof(event)));
+    write_event(fd_, event);
 }
 
 void Uinput::emit_abs(int code, int value) const {
@@ -164,14 +160,14 @@ void Uinput::emit_abs(int code, int value) const {
     event.type = EV_ABS;
     event.code = static_cast<uint16_t>(code);
     event.value = value;
-    IGNORE_RESULT(::write(fd_, &event, sizeof(event)));
+    write_event(fd_, event);
 }
 
 void Uinput::sync() const {
     input_event event{};
     event.type = EV_SYN;
     event.code = SYN_REPORT;
-    IGNORE_RESULT(::write(fd_, &event, sizeof(event)));
+    write_event(fd_, event);
 }
 
 namespace {
@@ -355,7 +351,7 @@ void InputDevice::emit_rel(int code, int value) const {
     event.type = EV_REL;
     event.code = static_cast<uint16_t>(code);
     event.value = value;
-    IGNORE_RESULT(::write(fd_, &event, sizeof(event)));
+    write_event(fd_, event);
 }
 
 void InputDevice::emit_key(int code, int value) const {
@@ -363,7 +359,7 @@ void InputDevice::emit_key(int code, int value) const {
     event.type = EV_KEY;
     event.code = static_cast<uint16_t>(code);
     event.value = value;
-    IGNORE_RESULT(::write(fd_, &event, sizeof(event)));
+    write_event(fd_, event);
 }
 
 void InputDevice::move_mouse(int dx, int dy) const {
@@ -388,7 +384,7 @@ void InputDevice::sync() const {
     input_event event{};
     event.type = EV_SYN;
     event.code = SYN_REPORT;
-    IGNORE_RESULT(::write(fd_, &event, sizeof(event)));
+    write_event(fd_, event);
 }
 
 } // namespace vader5

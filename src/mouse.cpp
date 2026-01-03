@@ -9,6 +9,11 @@
 #include <cstring>
 
 namespace vader5 {
+namespace {
+inline void write_event(int fd, const input_event& ev) {
+    if (::write(fd, &ev, sizeof(ev)) < 0) {}
+}
+} // namespace
 
 auto Mouse::create(const char* name) -> Result<Mouse> {
     const int fd = ::open("/dev/uinput", O_WRONLY | O_NONBLOCK);
@@ -70,13 +75,13 @@ void Mouse::move(int dx, int dy) const {
         ev.type = EV_REL;
         ev.code = REL_X;
         ev.value = dx;
-        (void)::write(fd_, &ev, sizeof(ev));
+        write_event(fd_, ev);
     }
     if (dy != 0) {
         ev.type = EV_REL;
         ev.code = REL_Y;
         ev.value = dy;
-        (void)::write(fd_, &ev, sizeof(ev));
+        write_event(fd_, ev);
     }
 }
 
@@ -85,7 +90,7 @@ void Mouse::button(int code, bool pressed) const {
     ev.type = EV_KEY;
     ev.code = static_cast<uint16_t>(code);
     ev.value = pressed ? 1 : 0;
-    (void)::write(fd_, &ev, sizeof(ev));
+    write_event(fd_, ev);
 }
 
 void Mouse::scroll(int delta) const {
@@ -96,14 +101,14 @@ void Mouse::scroll(int delta) const {
     ev.type = EV_REL;
     ev.code = REL_WHEEL;
     ev.value = delta;
-    (void)::write(fd_, &ev, sizeof(ev));
+    write_event(fd_, ev);
 }
 
 void Mouse::sync() const {
     input_event ev{};
     ev.type = EV_SYN;
     ev.code = SYN_REPORT;
-    (void)::write(fd_, &ev, sizeof(ev));
+    write_event(fd_, ev);
 }
 
 } // namespace vader5
