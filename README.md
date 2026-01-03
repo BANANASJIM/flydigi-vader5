@@ -2,220 +2,97 @@
 
 Linux userspace driver for the Flydigi Vader 5 Pro gamepad (2.4G USB dongle).
 
-[![License: GPL-2.0](https://img.shields.io/badge/License-GPL%202.0-blue.svg)](LICENSE)
-
 ## Features
 
-- **Xbox Elite emulation** - Appears as Xbox Elite Series 2 with paddle support
-- **Full button support** - All standard Xbox buttons + extended buttons (C, Z, M1-M4, LM, RM)
-- **Analog sticks & triggers** - Full 16-bit resolution
-- **Rumble/vibration** - Xbox 360 compatible force feedback
-- **Gyro mouse/joystick** - Gyro as mouse or mapped to right stick
-- **Layer system** - Tap-hold layers with button remap, gyro, stick, dpad overrides
-- **Button remapping** - Remap to keyboard keys or mouse buttons
-- **Steam Input compatible** - Works with Steam Input's Xbox Elite paddle configuration
+- Xbox Elite emulation with Steam paddle support (M1-M4)
+- Gyro mouse / joystick mode
+- Layer system with tap-hold (like QMK keyboard firmware)
+- Button remap to keyboard/mouse
 
-## Steam Input Paddle Support
+## Quick Start
 
-This driver emulates an **Xbox Elite Series 2** controller, which Steam Input recognizes natively. The extended buttons are mapped to Elite paddle buttons:
-
-| Vader 5 Button | Elite Paddle | Steam Input |
-|----------------|--------------|-------------|
-| M1 | P1 | Upper Left Paddle |
-| M2 | P2 | Upper Right Paddle |
-| M3 | P3 | Lower Left Paddle |
-| M4 | P4 | Lower Right Paddle |
-
-In Steam, go to **Controller Settings** → select your controller → **Configure** to bind these paddles to any action.
-
-## Requirements
-
-- Linux kernel 5.0+
-- CMake 3.20+
-- C++23 compiler (GCC 13+ or Clang 17+)
-
-Dependencies (toml++, ftxui, libusb) are automatically downloaded via CMake.
-
-## Installation
-
-### Quick Install
 ```bash
 git clone https://github.com/BANANASJIM/flydigi-vader5.git
 cd flydigi-vader5
-./install/install.sh
-```
-
-This will build the project, install udev rules, and create a config file.
-
-### Full System Install
-```bash
-./install/install.sh install
-```
-
-This additionally installs binaries to `/usr/local/bin` and creates a systemd service.
-
-### Manual Build
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-sudo cp install/99-vader5.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-```
-
-## Usage
-
-### Run the driver daemon
-```bash
-# Direct run (foreground)
+cmake -B build && cmake --build build
 sudo ./build/vader5d
-
-# Or with custom config
-sudo ./build/vader5d /path/to/config.toml
-
-# If installed system-wide
-sudo systemctl start vader5d
 ```
 
-### Debug tool
-```bash
-sudo ./build/vader5-debug
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Normal Mode                          │
+│  Controller works as Xbox Elite, M1-M4 are paddles     │
+└─────────────────────────────────────────────────────────┘
+                          │
+            Hold LM (< 200ms = tap, >= 200ms = hold)
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Layer: aim                            │
+│  Gyro → mouse, RB → left click, RT → right click       │
+└─────────────────────────────────────────────────────────┘
+                          │
+                    Release LM
+                          ▼
+                  Back to Normal
 ```
 
-Shows real-time input state including buttons, sticks, triggers, and IMU data.
+**Tap-hold**: Quick tap LM = mouse_side button, Hold LM = activate layer
 
 ## Configuration
 
-Config file location: `~/.config/vader5/config.toml`
-
-### Button Remapping
-
-Remap extended buttons to keyboard keys or mouse buttons:
+Config: `config/config.toml`
 
 ```toml
-[remap]
-M1 = "KEY_F13"      # Map M1 to F13
-M2 = "KEY_F14"
-M3 = "mouse_left"   # Map M3 to left mouse button
-M4 = "mouse_right"
-C = "KEY_TAB"
-Z = "KEY_ESC"
-O = "disabled"      # Disable O button
-```
+emulate_elite = true
 
-Available targets:
-- Keyboard: `KEY_A` through `KEY_Z`, `KEY_F1` through `KEY_F16`, `KEY_ESC`, `KEY_TAB`, `KEY_SPACE`, etc.
-- Mouse: `mouse_left`, `mouse_right`, `mouse_middle`
-- Disable: `disabled`
-
-### Gyro Configuration
-
-```toml
 [gyro]
-mode = "off"            # off / mouse / joystick
-sensitivity = 1.5
-deadzone = 50
-smoothing = 0.3
-curve = 1.0             # 1.0 = linear, >1 = slower start
-invert_x = false
-invert_y = false
-```
+mode = "off"                # off / mouse / joystick
 
-### Layers (Tap-Hold)
-
-Hold a trigger button to activate a layer, quick tap sends a different action:
-
-```toml
+# Hold LM for gyro aim
 [layer.aim]
-trigger = "LM"              # Hold LM to activate
-tap = "mouse_side"          # Quick tap sends mouse side button
-hold_timeout = 200          # ms before layer activates
-
-# Override settings while layer is active
+trigger = "LM"
+tap = "mouse_side"          # quick tap action
+hold_timeout = 200          # ms
 gyro = { mode = "mouse", sensitivity = 2.0 }
+remap = { RB = "mouse_left", RT = "mouse_right" }
+
+# Hold RM for stick mouse
+[layer.mouse]
+trigger = "RM"
 stick_right = { mode = "mouse" }
 dpad = { mode = "arrows" }
 
-# Remap buttons within this layer
-[layer.aim.remap]
-RB = "mouse_left"
-RT = "mouse_right"
+# Hold M4 for gyro-to-stick (games without gyro)
+[layer.gyro_stick]
+trigger = "M4"
+gyro = { mode = "joystick" }
 ```
 
-Layer features:
-- **Single-layer mode**: Only one layer active at a time
-- **Inheritance**: Layers inherit from base config, only override what's defined
-- **Gyro joystick**: Map gyro to right stick for games without native gyro
+## Steam Paddles
 
-### Stick Configuration
-
-```toml
-[stick.left]
-mode = "gamepad"        # gamepad / scroll
-deadzone = 128
-sensitivity = 1.0
-
-[stick.right]
-mode = "gamepad"        # gamepad / mouse
-deadzone = 128
-sensitivity = 1.0
-```
-
-## Project Structure
-
-```
-flydigi-vader5/
-├── src/                    # Userspace driver source
-│   ├── daemon/             # vader5d daemon
-│   └── tools/              # Debug and utility tools
-├── include/vader5/         # Public headers
-├── driver/                 # Kernel driver (WIP)
-├── install/                # Installation scripts
-├── config/                 # Default configuration
-└── docs/                   # Documentation
-```
+| Vader 5 | Elite | Steam Input |
+|---------|-------|-------------|
+| M1 | P1 | Upper Left |
+| M2 | P2 | Upper Right |
+| M3 | P3 | Lower Left |
+| M4 | P4 | Lower Right |
 
 ## Troubleshooting
 
-### Permission denied
 ```bash
-# Install udev rules
+# Permission denied
 sudo cp install/99-vader5.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
-# Replug the USB dongle
+
+# Check controller
+lsusb | grep 37d7
+
+# Debug tool
+sudo ./build/vader5-debug
 ```
-
-### Controller not detected
-- Ensure the 2.4G USB dongle is plugged in
-- Check if the controller is paired with the dongle
-- Verify with `lsusb | grep 37d7`
-
-### Steam doesn't detect paddles
-- Make sure Steam is running after starting vader5d
-- In Steam: Settings → Controller → Enable Xbox Extended Feature Support
-
-## Roadmap
-
-- [x] Basic input (buttons, sticks, triggers)
-- [x] Rumble support (Xbox 360 format)
-- [x] Debug TUI tool
-- [x] Extended buttons (test mode)
-- [x] IMU/Gyro data
-- [x] Gyro mouse & joystick modes
-- [x] Layer system with tap-hold
-- [x] Button remapping
-- [ ] Kernel HID driver
-- [ ] LED control
-
-## Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 ## License
 
-GPL-2.0 - See [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- [vader3](https://github.com/ahungry/vader3) - Initial protocol research
-- [flydigictl](https://github.com/pipe01/flydigictl) - Bluetooth protocol reference
-- [xpadneo](https://github.com/atar-axis/xpadneo) - Xbox controller driver reference
+GPL-2.0
