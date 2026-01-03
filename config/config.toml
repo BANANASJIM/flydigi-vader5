@@ -1,9 +1,9 @@
 # Vader 5 Pro Configuration
-
+# true: Xbox Elite (Steam paddles), false: standard gamepad + base remaps
 emulate_elite = true
 
 [gyro]
-mode = "off"
+mode = "off"                # off / mouse / joystick
 
 [stick.left]
 deadzone = 128
@@ -11,15 +11,22 @@ deadzone = 128
 [stick.right]
 deadzone = 128
 
-# Hold LM for gyro aim
-[layer.aim]
-trigger = "LM"
-tap = "mouse_side"
-hold_timeout = 200
-gyro = { mode = "mouse", sensitivity = 2.0 }
-remap = { RB = "mouse_left", RT = "mouse_right" }
+# ═══════════════════════════════════════════════════════════════
+# Layers - hold trigger to activate, release to deactivate
+# ═══════════════════════════════════════════════════════════════
 
-# Hold RM for stick mouse
+# Hold LM for gyro aim + full mouse mode
+[layer.aim]
+trigger = "LM"              # A/B/X/Y/LB/RB/LT/RT/M1-M4/LM/RM/C/Z
+tap = "mouse_side"          # KEY_*, mouse_left/right/middle/side/extra
+hold_timeout = 200          # ms before layer activates
+gyro = { mode = "mouse", sensitivity = 2.0 }
+stick_left = { mode = "scroll" }   # gamepad / mouse / scroll
+stick_right = { mode = "mouse", sensitivity = 1.0 }  # gamepad / mouse
+dpad = { mode = "arrows" }  # gamepad / arrows / scroll
+remap = { RB = "mouse_left", RT = "mouse_right", RM = "mouse_middle", A = "KEY_LEFTMETA" }
+
+# Hold RM for stick mouse + arrows
 [layer.mouse]
 trigger = "RM"
 hold_timeout = 150

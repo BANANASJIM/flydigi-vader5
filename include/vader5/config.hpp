@@ -19,11 +19,11 @@ struct RemapTarget {
 struct GyroConfig {
     enum Mode { Off, Mouse, Joystick };
     Mode mode{Off};
-    float sensitivity_x{1.5f};
-    float sensitivity_y{1.5f};
+    float sensitivity_x{1.5F};
+    float sensitivity_y{1.5F};
     int deadzone{0};
-    float smoothing{0.3f};
-    float curve{1.0f};
+    float smoothing{0.3F};
+    float curve{1.0F};
     bool invert_x{false};
     bool invert_y{false};
 };
@@ -32,7 +32,7 @@ struct StickConfig {
     enum Mode { Gamepad, Mouse, Scroll };
     Mode mode{Gamepad};
     int deadzone{128};
-    float sensitivity{1.0f};
+    float sensitivity{1.0F};
 };
 
 struct DpadConfig {

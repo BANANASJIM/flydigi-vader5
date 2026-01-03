@@ -56,12 +56,12 @@ class Gamepad {
     Config config_;
     GamepadState prev_state_{};
     std::unordered_map<std::string, TapHoldState> tap_hold_states_;
-    float gyro_vel_x_{0.0f};
-    float gyro_vel_y_{0.0f};
-    float gyro_accum_x_{0.0f};
-    float gyro_accum_y_{0.0f};
-    float scroll_accum_v_{0.0f};
-    float scroll_accum_h_{0.0f};
+    float gyro_vel_x_{0.0F};
+    float gyro_vel_y_{0.0F};
+    float gyro_accum_x_{0.0F};
+    float gyro_accum_y_{0.0F};
+    float scroll_accum_v_{0.0F};
+    float scroll_accum_h_{0.0F};
     int gyro_stick_x_{0};
     int gyro_stick_y_{0};
     bool dpad_up_{false};

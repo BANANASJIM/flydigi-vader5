@@ -25,14 +25,15 @@ jobs:
       - name: Configure
         run: |
           TIDY_FLAG=OFF
+          CMAKE_EXTRA=""
           if [ "${{ matrix.compiler }}" = "clang" ]; then
-            export CC=clang CXX=clang++
-            export CXXFLAGS="-stdlib=libc++"
+            CMAKE_EXTRA="-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_FLAGS=-stdlib=libc++"
             TIDY_FLAG=ON
           fi
           cmake -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DENABLE_CLANG_TIDY=$TIDY_FLAG
+            -DENABLE_CLANG_TIDY=$TIDY_FLAG \
+            $CMAKE_EXTRA
 
       - name: Build
         run: cmake --build build

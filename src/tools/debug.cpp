@@ -325,8 +325,6 @@ void input_thread(const vader5::Hidraw& hidraw) {
     }
 }
 
-constexpr uint8_t EXT_MAGIC_5A = 0x5a;
-constexpr uint8_t EXT_MAGIC_A5 = 0xa5;
 constexpr uint8_t EXT_MAGIC_EF = 0xef;
 constexpr size_t EXT_OFF_LX = 3;
 constexpr size_t EXT_OFF_BTNS = 11;

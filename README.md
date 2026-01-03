@@ -29,15 +29,13 @@ Press LM
     │
     ├─── Release < 200ms ───► Tap: emit mouse_side
     │
-    └─── Hold >= 200ms ─────► Layer activates
+    └─── Hold >= 200ms ─────► Layer activates (no tap emit)
                                    │
                               Gyro → mouse
                               RB → left click
                               RT → right click
                                    │
-                              Release LM
-                                   │
-                              Layer deactivates
+                              Release LM → Layer deactivates
 ```
 
 ### Layer System
@@ -52,9 +50,9 @@ Press LM
         ▼                    ▼                    ▼
    ┌─────────┐          ┌─────────┐          ┌─────────┐
    │  aim    │          │  mouse  │          │gyro_stick│
-   │gyro aim │          │stick    │          │gyro→stick│
-   └─────────┘          │mouse    │          └─────────┘
-                        └─────────┘
+   │gyro+stick│         │stick    │          │gyro→stick│
+   │+scroll  │          │+arrows  │          └─────────┘
+   └─────────┘          └─────────┘
 
 Only one layer active at a time (first activated wins)
 ```
@@ -64,39 +62,43 @@ Only one layer active at a time (first activated wins)
 Config: `config/config.toml`
 
 ```toml
-emulate_elite = true
+emulate_elite = true        # true: Xbox Elite (Steam paddles), false: standard gamepad
 
 [gyro]
 mode = "off"                # off / mouse / joystick
 
-# Hold LM for gyro aim
+# Hold LM for gyro aim + full mouse mode
 [layer.aim]
-trigger = "LM"
-tap = "mouse_side"          # quick tap action
-hold_timeout = 200          # ms
+trigger = "LM"              # trigger button: A/B/X/Y/LB/RB/LT/RT/M1-M4/LM/RM/C/Z
+tap = "mouse_side"          # tap action: KEY_*, mouse_left/right/middle/side/extra
+hold_timeout = 200          # ms before layer activates
 gyro = { mode = "mouse", sensitivity = 2.0 }
-remap = { RB = "mouse_left", RT = "mouse_right" }
+stick_left = { mode = "scroll" }   # mode: gamepad / mouse / scroll
+stick_right = { mode = "mouse", sensitivity = 1.0 }  # mode: gamepad / mouse
+dpad = { mode = "arrows" }  # mode: gamepad / arrows / scroll
+remap = { RB = "mouse_left", RT = "mouse_right", RM = "mouse_middle", A = "KEY_LEFTMETA" }
 
-# Hold RM for stick mouse
+# Hold RM for stick mouse + arrows
 [layer.mouse]
 trigger = "RM"
-stick_right = { mode = "mouse" }
+stick_right = { mode = "mouse", sensitivity = 1.5 }
 dpad = { mode = "arrows" }
+remap = { A = "mouse_left", B = "mouse_right" }
 
 # Hold M4 for gyro-to-stick (games without gyro)
 [layer.gyro_stick]
 trigger = "M4"
-gyro = { mode = "joystick" }
+gyro = { mode = "joystick", sensitivity = 1.0 }
 ```
 
 ## Steam Paddles
 
-| Vader 5 | Elite | Steam Input |
-|---------|-------|-------------|
-| M1 | P1 | Upper Left |
-| M2 | P2 | Upper Right |
-| M3 | P3 | Lower Left |
-| M4 | P4 | Lower Right |
+| Vader 5 | Elite | Steam Input  |
+|---------|-------|--------------|
+| M1      | P1    | Upper Left   |
+| M2      | P2    | Upper Right  |
+| M3      | P3    | Lower Left   |
+| M4      | P4    | Lower Right  |
 
 ## Troubleshooting
 

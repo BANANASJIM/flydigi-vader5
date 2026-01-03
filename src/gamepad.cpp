@@ -342,7 +342,7 @@ void Gamepad::process_gyro(const GamepadState& state) {
     gx = apply_curve(gx, gcfg.curve, dz);
 
     if (gcfg.mode == GyroConfig::Joystick) {
-        constexpr float JOYSTICK_SCALE = 20.0f;
+        constexpr float JOYSTICK_SCALE = 20.0F;
         auto stick_x = gz * gcfg.sensitivity_x * JOYSTICK_SCALE;
         auto stick_y = gx * gcfg.sensitivity_y * JOYSTICK_SCALE;
         if (gcfg.invert_x) {
