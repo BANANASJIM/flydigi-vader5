@@ -1,0 +1,41 @@
+# Vader 5 Pro Configuration
+
+# Button remapping
+[remap]
+M1 = "KEY_F13"
+M2 = "KEY_F14"
+M3 = "KEY_F15"
+M4 = "KEY_F16"
+C = "KEY_TAB"
+Z = "KEY_ESC"
+# O = "disabled"
+
+# Gyroscope settings
+[gyro]
+mode = "off"              # off / mouse
+sensitivity_x = 20.0
+sensitivity_y = 20.0
+deadzone = 0
+smoothing = 0.3           # 0-0.95, higher = smoother
+curve = 1.5               # 1.0 = linear, >1 = amplify fast movements
+invert_x = false
+invert_y = false
+
+# Stick settings
+[stick.left]
+deadzone = 128
+
+[stick.right]
+deadzone = 128
+as_mouse = false
+mouse_sensitivity = 1.0
+
+# Mode Shift: hold LM to activate mouse mode
+[mode_shift.LM]
+gyro = "mouse"
+right_stick = "mouse"
+left_stick = "scroll"
+scroll_sensitivity = 0.5
+dpad = "arrows"
+RB = "mouse_left"
+RT = "mouse_right"

@@ -9,7 +9,7 @@ namespace vader5 {
 
 namespace {
 constexpr std::array<std::string_view, 8> EXT_BUTTON_NAMES = {
-    "C", "Z", "M4", "M1", "M2", "M3", "CIRCLE", "HOME"};
+    "C", "Z", "M1", "M3", "M2", "M4", "LM", "RM"};
 
 struct KeyEntry {
     std::string_view name;
@@ -17,6 +17,7 @@ struct KeyEntry {
 };
 
 constexpr std::array KEY_TABLE = {
+    // Keyboard keys
     KeyEntry{"KEY_ESC", KEY_ESC},
     KeyEntry{"KEY_1", KEY_1},
     KeyEntry{"KEY_2", KEY_2},
@@ -75,6 +76,10 @@ constexpr std::array KEY_TABLE = {
     KeyEntry{"KEY_F10", KEY_F10},
     KeyEntry{"KEY_F11", KEY_F11},
     KeyEntry{"KEY_F12", KEY_F12},
+    KeyEntry{"KEY_F13", KEY_F13},
+    KeyEntry{"KEY_F14", KEY_F14},
+    KeyEntry{"KEY_F15", KEY_F15},
+    KeyEntry{"KEY_F16", KEY_F16},
     KeyEntry{"KEY_RIGHTCTRL", KEY_RIGHTCTRL},
     KeyEntry{"KEY_RIGHTALT", KEY_RIGHTALT},
     KeyEntry{"KEY_HOME", KEY_HOME},
@@ -87,6 +92,7 @@ constexpr std::array KEY_TABLE = {
     KeyEntry{"KEY_PAGEDOWN", KEY_PAGEDOWN},
     KeyEntry{"KEY_INSERT", KEY_INSERT},
     KeyEntry{"KEY_DELETE", KEY_DELETE},
+    // Gamepad buttons
     KeyEntry{"BTN_SOUTH", BTN_SOUTH},
     KeyEntry{"BTN_EAST", BTN_EAST},
     KeyEntry{"BTN_NORTH", BTN_NORTH},
@@ -98,7 +104,20 @@ constexpr std::array KEY_TABLE = {
     KeyEntry{"BTN_MODE", BTN_MODE},
     KeyEntry{"BTN_THUMBL", BTN_THUMBL},
     KeyEntry{"BTN_THUMBR", BTN_THUMBR},
+    // Mouse buttons
+    KeyEntry{"BTN_LEFT", BTN_LEFT},
+    KeyEntry{"BTN_RIGHT", BTN_RIGHT},
+    KeyEntry{"BTN_MIDDLE", BTN_MIDDLE},
+    KeyEntry{"mouse_left", BTN_LEFT},
+    KeyEntry{"mouse_right", BTN_RIGHT},
+    KeyEntry{"mouse_middle", BTN_MIDDLE},
 };
+
+auto parse_gyro_mode(std::string_view mode) -> GyroConfig::Mode {
+    if (mode == "mouse") return GyroConfig::Mouse;
+    if (mode == "joystick") return GyroConfig::Joystick;
+    return GyroConfig::Off;
+}
 } // namespace
 
 auto keycode_from_name(std::string_view name) -> std::optional<int> {
@@ -110,12 +129,54 @@ auto keycode_from_name(std::string_view name) -> std::optional<int> {
     return std::nullopt;
 }
 
-auto Config::default_path() -> std::string {
-    if (const char* home = std::getenv("HOME"); home != nullptr) {
-        return std::string(home) + "/.config/vader5/config.toml";
+auto parse_remap_target(std::string_view value) -> std::optional<RemapTarget> {
+    if (value == "disabled") {
+        return RemapTarget{RemapTarget::Disabled, 0};
     }
-    return "/etc/vader5/config.toml";
+    if (value == "mouse_left") {
+        return RemapTarget{RemapTarget::MouseButton, BTN_LEFT};
+    }
+    if (value == "mouse_right") {
+        return RemapTarget{RemapTarget::MouseButton, BTN_RIGHT};
+    }
+    if (value == "mouse_middle") {
+        return RemapTarget{RemapTarget::MouseButton, BTN_MIDDLE};
+    }
+    if (auto code = keycode_from_name(value)) {
+        return RemapTarget{RemapTarget::Key, *code};
+    }
+    return std::nullopt;
 }
+
+auto Config::default_path() -> std::string {
+    return "config.toml";
+}
+
+namespace {
+auto parse_stick_config(const toml::table& tbl, StickConfig& cfg) {
+    if (auto* dz = tbl["deadzone"].as_integer()) cfg.deadzone = static_cast<int>(dz->get());
+    if (auto* am = tbl["as_mouse"].as_boolean()) cfg.as_mouse = am->get();
+    if (auto* ms = tbl["mouse_sensitivity"].as_floating_point()) cfg.mouse_sensitivity = static_cast<float>(ms->get());
+}
+
+auto parse_mode_shift(const toml::table& tbl) -> ModeShiftConfig {
+    ModeShiftConfig ms;
+    if (auto* gyro = tbl["gyro"].as_string()) ms.gyro = parse_gyro_mode(gyro->get());
+    if (auto* rsm = tbl["right_stick"].as_string()) ms.right_stick_mouse = (rsm->get() == "mouse");
+    if (auto* lsm = tbl["left_stick"].as_string()) ms.left_stick_scroll = (lsm->get() == "scroll");
+    if (auto* ss = tbl["scroll_sensitivity"].as_floating_point()) ms.scroll_sensitivity = static_cast<float>(ss->get());
+    if (auto* dpad = tbl["dpad"].as_string()) ms.dpad_arrows = (dpad->get() == "arrows");
+    for (const auto& [key, val] : tbl) {
+        if (key == "gyro" || key == "right_stick" || key == "left_stick" || key == "dpad" || key == "scroll_sensitivity") continue;
+        if (auto* str = val.as_string()) {
+            if (auto target = parse_remap_target(str->get())) {
+                ms.remaps[std::string(key)] = *target;
+            }
+        }
+    }
+    return ms;
+}
+} // namespace
 
 auto Config::load(const std::string& path) -> Result<Config> {
     Config cfg;
@@ -127,17 +188,52 @@ auto Config::load(const std::string& path) -> Result<Config> {
         return std::unexpected(std::make_error_code(std::errc::invalid_argument));
     }
 
-    if (auto* mappings = tbl["mappings"].as_table(); mappings != nullptr) {
-        for (size_t idx = 0; idx < EXT_BUTTON_NAMES.size(); ++idx) {
-            if (auto* val = (*mappings)[EXT_BUTTON_NAMES[idx]].as_string(); val != nullptr) {
-                cfg.ext_mappings[idx] = keycode_from_name(val->get());
+    // [remap] section - button remapping
+    if (auto* remap = tbl["remap"].as_table()) {
+        for (const auto& [key, val] : *remap) {
+            if (auto* str = val.as_string()) {
+                // Check if it's an ext button (for backwards compat)
+                for (size_t idx = 0; idx < EXT_BUTTON_NAMES.size(); ++idx) {
+                    if (key == EXT_BUTTON_NAMES[idx]) {
+                        cfg.ext_mappings[idx] = keycode_from_name(str->get());
+                        break;
+                    }
+                }
+                // Store in general remaps
+                if (auto target = parse_remap_target(str->get())) {
+                    cfg.button_remaps[std::string(key)] = *target;
+                }
             }
         }
     }
 
-    if (auto* options = tbl["options"].as_table(); options != nullptr) {
-        if (auto* dz = (*options)["deadzone"].as_integer(); dz != nullptr) {
-            cfg.deadzone = static_cast<int>(dz->get());
+    // [gyro] section
+    if (auto* gyro = tbl["gyro"].as_table()) {
+        if (auto* mode = (*gyro)["mode"].as_string()) cfg.gyro.mode = parse_gyro_mode(mode->get());
+        if (auto* sens = (*gyro)["sensitivity"].as_floating_point()) {
+            auto val = static_cast<float>(sens->get());
+            cfg.gyro.sensitivity_x = val;
+            cfg.gyro.sensitivity_y = val;
+        }
+        if (auto* sx = (*gyro)["sensitivity_x"].as_floating_point()) cfg.gyro.sensitivity_x = static_cast<float>(sx->get());
+        if (auto* sy = (*gyro)["sensitivity_y"].as_floating_point()) cfg.gyro.sensitivity_y = static_cast<float>(sy->get());
+        if (auto* dz = (*gyro)["deadzone"].as_integer()) cfg.gyro.deadzone = static_cast<int>(dz->get());
+        if (auto* sm = (*gyro)["smoothing"].as_floating_point()) cfg.gyro.smoothing = static_cast<float>(sm->get());
+        if (auto* cv = (*gyro)["curve"].as_floating_point()) cfg.gyro.curve = static_cast<float>(cv->get());
+        if (auto* ix = (*gyro)["invert_x"].as_boolean()) cfg.gyro.invert_x = ix->get();
+        if (auto* iy = (*gyro)["invert_y"].as_boolean()) cfg.gyro.invert_y = iy->get();
+    }
+
+    // [stick.left] and [stick.right]
+    if (auto* left = tbl["stick"]["left"].as_table()) parse_stick_config(*left, cfg.left_stick);
+    if (auto* right = tbl["stick"]["right"].as_table()) parse_stick_config(*right, cfg.right_stick);
+
+    // [mode_shift.XXX] sections
+    if (auto* mode_shift = tbl["mode_shift"].as_table()) {
+        for (const auto& [key, val] : *mode_shift) {
+            if (auto* sub = val.as_table()) {
+                cfg.mode_shifts[std::string(key)] = parse_mode_shift(*sub);
+            }
         }
     }
 

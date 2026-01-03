@@ -31,8 +31,8 @@ constexpr std::array<int, 8> DEFAULT_EXT_CODES = {
 };
 } // namespace
 
-auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char* name)
-    -> Result<Uinput> {
+auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
+                    const char* name) -> Result<Uinput> {
     const int file_descriptor = ::open("/dev/uinput", O_WRONLY | O_NONBLOCK);
     if (file_descriptor < 0) {
         return std::unexpected(std::error_code(errno, std::system_category()));
@@ -111,7 +111,8 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char
 
 Uinput::Uinput(int file_descriptor, std::span<const std::optional<int>> mappings)
     : fd_(file_descriptor) {
-    std::ranges::copy(mappings, ext_mappings_.begin());
+    auto n = std::min(mappings.size(), ext_mappings_.size());
+    std::ranges::copy_n(mappings.begin(), n, ext_mappings_.begin());
 }
 
 Uinput::~Uinput() {
@@ -264,6 +265,110 @@ auto Uinput::emit(const GamepadState& state, const GamepadState& prev) const -> 
 
     sync();
     return {};
+}
+
+// InputDevice - separate mouse/keyboard device
+auto InputDevice::create(const char* name) -> Result<InputDevice> {
+    const int fd = ::open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+    if (fd < 0) {
+        return std::unexpected(std::error_code(errno, std::system_category()));
+    }
+
+    (void)ioctl(fd, UI_SET_EVBIT, EV_KEY);
+    (void)ioctl(fd, UI_SET_EVBIT, EV_REL);
+    (void)ioctl(fd, UI_SET_EVBIT, EV_SYN);
+
+    // Mouse
+    (void)ioctl(fd, UI_SET_RELBIT, REL_X);
+    (void)ioctl(fd, UI_SET_RELBIT, REL_Y);
+    (void)ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
+    (void)ioctl(fd, UI_SET_RELBIT, REL_HWHEEL);
+    (void)ioctl(fd, UI_SET_KEYBIT, BTN_LEFT);
+    (void)ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT);
+    (void)ioctl(fd, UI_SET_KEYBIT, BTN_MIDDLE);
+
+    // Arrow keys
+    (void)ioctl(fd, UI_SET_KEYBIT, KEY_UP);
+    (void)ioctl(fd, UI_SET_KEYBIT, KEY_DOWN);
+    (void)ioctl(fd, UI_SET_KEYBIT, KEY_LEFT);
+    (void)ioctl(fd, UI_SET_KEYBIT, KEY_RIGHT);
+
+    uinput_setup setup{};
+    std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
+    setup.id.bustype = BUS_USB;
+    setup.id.vendor = 0x0001;
+    setup.id.product = 0x0001;
+    setup.id.version = 1;
+
+    (void)ioctl(fd, UI_DEV_SETUP, &setup);
+    (void)ioctl(fd, UI_DEV_CREATE);
+
+    return InputDevice(fd);
+}
+
+InputDevice::~InputDevice() {
+    if (fd_ >= 0) {
+        (void)ioctl(fd_, UI_DEV_DESTROY);
+        ::close(fd_);
+    }
+}
+
+InputDevice::InputDevice(InputDevice&& other) noexcept : fd_(other.fd_) {
+    other.fd_ = -1;
+}
+
+auto InputDevice::operator=(InputDevice&& other) noexcept -> InputDevice& {
+    if (this != &other) {
+        if (fd_ >= 0) {
+            (void)ioctl(fd_, UI_DEV_DESTROY);
+            ::close(fd_);
+        }
+        fd_ = other.fd_;
+        other.fd_ = -1;
+    }
+    return *this;
+}
+
+void InputDevice::emit_rel(int code, int value) const {
+    if (value == 0) return;
+    input_event event{};
+    event.type = EV_REL;
+    event.code = static_cast<uint16_t>(code);
+    event.value = value;
+    (void)::write(fd_, &event, sizeof(event));
+}
+
+void InputDevice::emit_key(int code, int value) const {
+    input_event event{};
+    event.type = EV_KEY;
+    event.code = static_cast<uint16_t>(code);
+    event.value = value;
+    (void)::write(fd_, &event, sizeof(event));
+}
+
+void InputDevice::move_mouse(int dx, int dy) const {
+    emit_rel(REL_X, dx);
+    emit_rel(REL_Y, dy);
+}
+
+void InputDevice::scroll(int vertical, int horizontal) const {
+    emit_rel(REL_WHEEL, vertical);
+    emit_rel(REL_HWHEEL, horizontal);
+}
+
+void InputDevice::click(int code, bool pressed) const {
+    emit_key(code, pressed ? 1 : 0);
+}
+
+void InputDevice::key(int code, bool pressed) const {
+    emit_key(code, pressed ? 1 : 0);
+}
+
+void InputDevice::sync() const {
+    input_event event{};
+    event.type = EV_SYN;
+    event.code = SYN_REPORT;
+    (void)::write(fd_, &event, sizeof(event));
 }
 
 } // namespace vader5

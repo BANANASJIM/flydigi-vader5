@@ -20,15 +20,20 @@ void handle_signal(int /*signum*/) {
 constexpr int POLL_TIMEOUT_MS = 100;
 } // namespace
 
-auto main() -> int {
+auto main(int argc, char* argv[]) -> int {
     (void)std::signal(SIGINT, handle_signal);
     (void)std::signal(SIGTERM, handle_signal);
 
     vader5::Config cfg;
-    const auto config_path = vader5::Config::default_path();
+    std::string config_path = (argc > 1) ? argv[1] : vader5::Config::default_path();
     if (auto loaded = vader5::Config::load(config_path); loaded) {
         cfg = *loaded;
         std::println("vader5d: Loaded config from {}", config_path);
+        std::println("vader5d: gyro.mode = {} (0=off, 1=mouse, 2=joystick)", static_cast<int>(cfg.gyro.mode));
+        std::println("vader5d: gyro.sensitivity_x = {}, sensitivity_y = {}", cfg.gyro.sensitivity_x, cfg.gyro.sensitivity_y);
+        std::println("vader5d: gyro.deadzone = {}, smoothing = {}", cfg.gyro.deadzone, cfg.gyro.smoothing);
+    } else {
+        std::println("vader5d: No config at {}, using defaults", config_path);
     }
 
     std::println("vader5d: Opening Vader 5 Pro (VID:{:04x} PID:{:04x})...", vader5::VENDOR_ID,
