@@ -7,7 +7,8 @@
 #include <chrono>
 #include <csignal>
 #include <cstring>
-#include <print>
+#include <format>
+#include <iostream>
 #include <thread>
 
 #include <poll.h>
@@ -32,13 +33,13 @@ auto main(int argc, char* argv[]) -> int {
         (argc > 1) ? std::string(argv[1]) : vader5::Config::default_path(); // NOLINT
     if (auto loaded = vader5::Config::load(config_path); loaded) {
         cfg = *loaded;
-        std::println("vader5d: Loaded config from {}", config_path);
+        std::cout << std::format("vader5d: Loaded config from {}\n", config_path);
     } else {
-        std::println("vader5d: No config at {}, using defaults", config_path);
+        std::cout << std::format("vader5d: No config at {}, using defaults\n", config_path);
     }
 
-    std::println("vader5d: Waiting for Vader 5 Pro (VID:{:04x} PID:{:04x})...", vader5::VENDOR_ID,
-                 vader5::PRODUCT_ID);
+    std::cout << std::format("vader5d: Waiting for Vader 5 Pro (VID:{:04x} PID:{:04x})...\n",
+                             vader5::VENDOR_ID, vader5::PRODUCT_ID);
 
     while (g_running.load(std::memory_order_relaxed)) {
         auto gamepad = vader5::Gamepad::open(cfg);
@@ -47,13 +48,13 @@ auto main(int argc, char* argv[]) -> int {
             continue;
         }
 
-        std::println("vader5d: Device connected, running...");
+        std::cout << "vader5d: Device connected, running...\n";
         pollfd pfd{.fd = gamepad->fd(), .events = POLLIN, .revents = 0};
 
         while (g_running.load(std::memory_order_relaxed)) {
             const int ret = poll(&pfd, 1, POLL_TIMEOUT_MS);
             if (ret < 0 && errno != EINTR) {
-                std::println(stderr, "vader5d: poll error: {}", std::strerror(errno));
+                std::cerr << std::format("vader5d: poll error: {}\n", std::strerror(errno));
                 break;
             }
 
@@ -65,22 +66,22 @@ auto main(int argc, char* argv[]) -> int {
                         continue;
                     }
                     if (ec == std::errc::no_such_device || ec == std::errc::io_error) {
-                        std::println("vader5d: Device disconnected");
+                        std::cout << "vader5d: Device disconnected\n";
                         break;
                     }
-                    std::println(stderr, "vader5d: Read error: {}", ec.message());
+                    std::cerr << std::format("vader5d: Read error: {}\n", ec.message());
                 }
             }
 
             if ((pfd.revents & (POLLHUP | POLLERR)) != 0) {
-                std::println("vader5d: Device disconnected");
+                std::cout << "vader5d: Device disconnected\n";
                 break;
             }
         }
 
-        std::println("vader5d: Waiting for reconnection...");
+        std::cout << "vader5d: Waiting for reconnection...\n";
     }
 
-    std::println("vader5d: Shutting down");
+    std::cout << "vader5d: Shutting down\n";
     return 0;
 }
