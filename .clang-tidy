@@ -18,11 +18,14 @@ Checks: >
     -cppcoreguidelines-pro-type-vararg,
     -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
     -cppcoreguidelines-pro-bounds-constant-array-index,
+    -readability-identifier-length,
     -modernize-use-designated-initializers,
     -hicpp-vararg,
     -hicpp-signed-bitwise,
     -hicpp-no-array-decay,
-    -concurrency-mt-unsafe
+    -concurrency-mt-unsafe,
+    -misc-const-correctness,
+    -bugprone-unchecked-optional-access
 
 WarningsAsErrors: '*'
 

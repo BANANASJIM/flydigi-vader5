@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
@@ -87,9 +88,9 @@ inline auto parse(std::span<const uint8_t> data) -> std::optional<GamepadState> 
 
     GamepadState state{};
     state.left_x = read_s16(&data[OFF_LX]);
-    state.left_y = static_cast<int16_t>(-read_s16(&data[OFF_LX + 2]));
+    state.left_y = static_cast<int16_t>(std::clamp(-static_cast<int>(read_s16(&data[OFF_LX + 2])), -32767, 32767));
     state.right_x = read_s16(&data[OFF_LX + 4]);
-    state.right_y = static_cast<int16_t>(-read_s16(&data[OFF_LX + 6]));
+    state.right_y = static_cast<int16_t>(std::clamp(-static_cast<int>(read_s16(&data[OFF_LX + 6])), -32767, 32767));
 
     const uint8_t b11 = data[OFF_BTNS];
     const uint8_t b12 = data[OFF_BTNS + 1];

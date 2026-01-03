@@ -1,50 +1,57 @@
 # Vader 5 Pro Configuration
 
-# Button remapping: map extended buttons to keyboard/mouse
-# Available: KEY_A-Z, KEY_F1-F16, KEY_ESC, KEY_TAB, KEY_SPACE, etc.
-#            mouse_left, mouse_right, mouse_middle, disabled
+# Elite emulation: true = Xbox Elite for Steam, false = standard gamepad
+emulate_elite = true
+
+# Base button remaps (only work when emulate_elite = false)
 [remap]
 M1 = "KEY_F13"
 M2 = "KEY_F14"
-M3 = "KEY_F15"
-M4 = "KEY_F16"
 C = "KEY_TAB"
 Z = "KEY_ESC"
-# LM = "disabled"         # disable LM button
-# RM = "disabled"         # disable RM button
-# O = "disabled"          # disable O button
 
-# Gyro mouse: use controller motion as mouse
-# mode: off, mouse
+# Base gyro config
 [gyro]
 mode = "off"
-# sensitivity = 1.5       # overall sensitivity
-# sensitivity_x = 1.5     # horizontal sensitivity
-# sensitivity_y = 1.5     # vertical sensitivity
-# deadzone = 50           # ignore small movements
-# smoothing = 0.8         # 0.0-1.0, higher = smoother
-# curve = 1.0             # response curve exponent
-# invert_x = false
-# invert_y = false
 
-# Stick settings
+# Base stick config
 [stick.left]
+mode = "gamepad"
 deadzone = 128
-# as_mouse = false        # use as mouse
-# mouse_sensitivity = 1.0
 
 [stick.right]
+mode = "gamepad"
 deadzone = 128
-# as_mouse = false
-# mouse_sensitivity = 1.0
 
-# Mode shift: hold button to activate alternate mode
-# Available actions: gyro, right_stick, left_stick, dpad, button remaps
-[mode_shift.LM]
-gyro = "mouse"            # enable gyro mouse while holding
-right_stick = "mouse"     # right stick becomes mouse
-# left_stick = "scroll"   # left stick becomes scroll wheel
-# dpad = "arrows"         # dpad becomes arrow keys
-RB = "mouse_left"         # RB becomes left click
-RT = "mouse_right"        # RT becomes right click
-# scroll_sensitivity = 1.0
+# Base dpad config
+[dpad]
+mode = "gamepad"
+
+# Layers: hold trigger to activate, quick tap emits tap action
+# Each layer inherits from base and only overrides what's defined
+
+# Hold LM for gyro aim mode
+[layer.gyro_aim]
+trigger = "LM"
+tap = "mouse_side"
+hold_timeout = 200
+gyro = { mode = "mouse", sensitivity_x = 2.0, sensitivity_y = 2.0 }
+remap = { RB = "mouse_left", RT = "mouse_right" }
+
+# Hold RM for mouse stick mode
+[layer.mouse]
+trigger = "RM"
+hold_timeout = 150
+stick_right = { mode = "mouse", sensitivity = 1.5 }
+remap = { A = "mouse_left", B = "mouse_right" }
+
+# Hold M3 for scroll mode
+[layer.scroll]
+trigger = "M3"
+stick_right = { mode = "scroll", sensitivity = 1.0 }
+dpad = { mode = "arrows" }
+
+# Hold M4 for gyro-to-joystick mode (for games without gyro support)
+[layer.gyro_stick]
+trigger = "M4"
+gyro = { mode = "joystick", sensitivity_x = 1.0, sensitivity_y = 1.0 }

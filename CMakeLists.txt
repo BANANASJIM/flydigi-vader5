@@ -45,6 +45,7 @@ add_executable(vader5d
     src/uinput.cpp
     src/gamepad.cpp
     src/config.cpp
+    src/keycodes.cpp
     src/mouse.cpp
 )
 target_include_directories(vader5d PRIVATE include)

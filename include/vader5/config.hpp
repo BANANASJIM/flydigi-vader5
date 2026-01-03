@@ -23,39 +23,50 @@ struct GyroConfig {
     float sensitivity_y{1.5f};
     int deadzone{0};
     float smoothing{0.3f};
-    float curve{1.0f}; // 1.0=linear, <1=slow start, >1=fast start
+    float curve{1.0f};
     bool invert_x{false};
     bool invert_y{false};
 };
 
 struct StickConfig {
+    enum Mode { Gamepad, Mouse, Scroll };
+    Mode mode{Gamepad};
     int deadzone{128};
-    bool as_mouse{false};
-    float mouse_sensitivity{1.0f};
+    float sensitivity{1.0f};
 };
 
-struct ModeShiftConfig {
-    GyroConfig::Mode gyro{GyroConfig::Off};
-    bool right_stick_mouse{false};
-    bool left_stick_scroll{false};
-    float scroll_sensitivity{1.0f};
-    bool dpad_arrows{false};
-    std::unordered_map<std::string, RemapTarget> remaps;
+struct DpadConfig {
+    enum Mode { Gamepad, Arrows };
+    Mode mode{Gamepad};
+};
+
+struct LayerConfig {
+    std::string name;
+    std::string trigger;
+    std::optional<RemapTarget> tap;
+    int hold_timeout{200};
+
+    std::optional<GyroConfig> gyro;
+    std::optional<StickConfig> stick_left;
+    std::optional<StickConfig> stick_right;
+    std::optional<DpadConfig> dpad;
+    std::unordered_map<std::string, RemapTarget> remap;
 };
 
 struct Config {
+    bool emulate_elite{true};
     std::array<std::optional<int>, 8> ext_mappings{};
     std::unordered_map<std::string, RemapTarget> button_remaps;
     GyroConfig gyro;
     StickConfig left_stick;
     StickConfig right_stick;
-    std::unordered_map<std::string, ModeShiftConfig> mode_shifts;
+    DpadConfig dpad;
+    std::unordered_map<std::string, LayerConfig> layers;
 
     static auto load(const std::string& path) -> Result<Config>;
     static auto default_path() -> std::string;
 };
 
-auto keycode_from_name(std::string_view name) -> std::optional<int>;
 auto parse_remap_target(std::string_view value) -> std::optional<RemapTarget>;
 
 } // namespace vader5

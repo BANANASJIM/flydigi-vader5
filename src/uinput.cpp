@@ -288,15 +288,17 @@ auto InputDevice::create(const char* name) -> Result<InputDevice> {
     (void)ioctl(fd, UI_SET_RELBIT, REL_Y);
     (void)ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
     (void)ioctl(fd, UI_SET_RELBIT, REL_HWHEEL);
-    (void)ioctl(fd, UI_SET_KEYBIT, BTN_LEFT);
-    (void)ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT);
-    (void)ioctl(fd, UI_SET_KEYBIT, BTN_MIDDLE);
+    for (const int btn : {BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, BTN_SIDE, BTN_EXTRA, BTN_FORWARD, BTN_BACK}) {
+        (void)ioctl(fd, UI_SET_KEYBIT, btn);
+    }
 
-    // Arrow keys
-    (void)ioctl(fd, UI_SET_KEYBIT, KEY_UP);
-    (void)ioctl(fd, UI_SET_KEYBIT, KEY_DOWN);
-    (void)ioctl(fd, UI_SET_KEYBIT, KEY_LEFT);
-    (void)ioctl(fd, UI_SET_KEYBIT, KEY_RIGHT);
+    // Keyboard - register common keys
+    for (int key = KEY_ESC; key <= KEY_KPDOT; ++key) {
+        (void)ioctl(fd, UI_SET_KEYBIT, key);
+    }
+    for (int key = KEY_F1; key <= KEY_F24; ++key) {
+        (void)ioctl(fd, UI_SET_KEYBIT, key);
+    }
 
     uinput_setup setup{};
     std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);

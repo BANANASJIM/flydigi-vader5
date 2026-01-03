@@ -4,7 +4,15 @@
 #include "hidraw.hpp"
 #include "uinput.hpp"
 
+#include <chrono>
+
 namespace vader5 {
+
+struct TapHoldState {
+    std::string layer_name;
+    std::chrono::steady_clock::time_point press_time;
+    bool layer_activated{false};
+};
 
 class Gamepad {
   public:
@@ -30,22 +38,32 @@ class Gamepad {
     void process_gyro(const GamepadState& state);
     void process_mouse_stick(const GamepadState& state);
     void process_scroll_stick(const GamepadState& state);
-    void process_mode_shift_dpad(const GamepadState& state, const GamepadState& prev);
-    void process_mode_shift_buttons(const GamepadState& state, const GamepadState& prev);
-    auto get_active_mode_shift(const GamepadState& state) -> const ModeShiftConfig*;
+    void process_layer_dpad(const GamepadState& state);
+    void process_layer_buttons(const GamepadState& state, const GamepadState& prev);
+    void process_base_remaps(const GamepadState& state, const GamepadState& prev);
+    void update_tap_hold(const GamepadState& state, const GamepadState& prev);
+    auto get_active_layer() -> const LayerConfig*;
     static auto is_button_pressed(const GamepadState& state, std::string_view name) -> bool;
+
+    auto get_effective_gyro() -> const GyroConfig&;
+    auto get_effective_stick_left() -> const StickConfig&;
+    auto get_effective_stick_right() -> const StickConfig&;
+    auto get_effective_dpad() -> const DpadConfig&;
 
     Hidraw hidraw_;
     Uinput uinput_;
     std::optional<InputDevice> input_;
     Config config_;
     GamepadState prev_state_{};
+    std::unordered_map<std::string, TapHoldState> tap_hold_states_;
     float gyro_vel_x_{0.0f};
     float gyro_vel_y_{0.0f};
     float gyro_accum_x_{0.0f};
     float gyro_accum_y_{0.0f};
     float scroll_accum_v_{0.0f};
     float scroll_accum_h_{0.0f};
+    int gyro_stick_x_{0};
+    int gyro_stick_y_{0};
     bool dpad_up_{false};
     bool dpad_down_{false};
     bool dpad_left_{false};
