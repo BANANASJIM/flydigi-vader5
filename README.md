@@ -7,13 +7,13 @@ Linux userspace driver for the Flydigi Vader 5 Pro gamepad (2.4G USB dongle).
 ## Features
 
 - **Xbox Elite emulation** - Appears as Xbox Elite Series 2 with paddle support
-- **Full button support** - All standard Xbox buttons + extended buttons (C, Z, M1-M4, LM, RM, O)
+- **Full button support** - All standard Xbox buttons + extended buttons (C, Z, M1-M4, LM, RM)
 - **Analog sticks & triggers** - Full 16-bit resolution
 - **Rumble/vibration** - Xbox 360 compatible force feedback
-- **Gyro-to-mouse** - Use gyroscope as mouse with configurable sensitivity and response curve
-- **Mode shift** - Hold a button to activate mouse mode, D-pad arrows, scroll wheel
-- **Button remapping** - Remap extended buttons to keyboard keys or mouse buttons
-- **Steam Input compatible** - Works seamlessly with Steam Input's Xbox Elite paddle configuration
+- **Gyro mouse/joystick** - Gyro as mouse or mapped to right stick
+- **Layer system** - Tap-hold layers with button remap, gyro, stick, dpad overrides
+- **Button remapping** - Remap to keyboard keys or mouse buttons
+- **Steam Input compatible** - Works with Steam Input's Xbox Elite paddle configuration
 
 ## Steam Input Paddle Support
 
@@ -107,44 +107,57 @@ Available targets:
 - Mouse: `mouse_left`, `mouse_right`, `mouse_middle`
 - Disable: `disabled`
 
-### Gyro Mouse
-
-Use the controller's gyroscope as a mouse:
+### Gyro Configuration
 
 ```toml
 [gyro]
-mode = "mouse"      # off / mouse
+mode = "off"            # off / mouse / joystick
 sensitivity = 1.5
 deadzone = 50
-smoothing = 0.8
+smoothing = 0.3
+curve = 1.0             # 1.0 = linear, >1 = slower start
 invert_x = false
 invert_y = false
 ```
 
-### Mode Shift
+### Layers (Tap-Hold)
 
-Temporarily activate features while holding a button:
+Hold a trigger button to activate a layer, quick tap sends a different action:
 
 ```toml
-[mode_shift.LM]            # When holding LM button
-gyro = "mouse"             # Enable gyro mouse
-right_stick = "mouse"      # Right stick controls mouse
-RB = "mouse_left"          # RB becomes left click
-RT = "mouse_right"         # RT becomes right click
-dpad = "arrows"            # D-pad becomes arrow keys
-left_stick = "scroll"      # Left stick becomes scroll wheel
+[layer.aim]
+trigger = "LM"              # Hold LM to activate
+tap = "mouse_side"          # Quick tap sends mouse side button
+hold_timeout = 200          # ms before layer activates
+
+# Override settings while layer is active
+gyro = { mode = "mouse", sensitivity = 2.0 }
+stick_right = { mode = "mouse" }
+dpad = { mode = "arrows" }
+
+# Remap buttons within this layer
+[layer.aim.remap]
+RB = "mouse_left"
+RT = "mouse_right"
 ```
+
+Layer features:
+- **Single-layer mode**: Only one layer active at a time
+- **Inheritance**: Layers inherit from base config, only override what's defined
+- **Gyro joystick**: Map gyro to right stick for games without native gyro
 
 ### Stick Configuration
 
 ```toml
 [stick.left]
+mode = "gamepad"        # gamepad / scroll
 deadzone = 128
+sensitivity = 1.0
 
 [stick.right]
+mode = "gamepad"        # gamepad / mouse
 deadzone = 128
-as_mouse = false           # Use right stick as mouse
-mouse_sensitivity = 1.0
+sensitivity = 1.0
 ```
 
 ## Project Structure
@@ -187,8 +200,8 @@ sudo udevadm control --reload-rules
 - [x] Debug TUI tool
 - [x] Extended buttons (test mode)
 - [x] IMU/Gyro data
-- [x] Gyro-to-mouse
-- [x] Mode shift
+- [x] Gyro mouse & joystick modes
+- [x] Layer system with tap-hold
 - [x] Button remapping
 - [ ] Kernel HID driver
 - [ ] LED control
