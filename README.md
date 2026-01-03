@@ -20,25 +20,44 @@ sudo ./build/vader5d
 
 ## How It Works
 
+### Tap-Hold (Home Row Mods)
+
+Like QMK/ZMK keyboard firmware - one button, two functions:
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Normal Mode                          │
-│  Controller works as Xbox Elite, M1-M4 are paddles     │
-└─────────────────────────────────────────────────────────┘
-                          │
-            Hold LM (< 200ms = tap, >= 200ms = hold)
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Layer: aim                            │
-│  Gyro → mouse, RB → left click, RT → right click       │
-└─────────────────────────────────────────────────────────┘
-                          │
-                    Release LM
-                          ▼
-                  Back to Normal
+Press LM
+    │
+    ├─── Release < 200ms ───► Tap: emit mouse_side
+    │
+    └─── Hold >= 200ms ─────► Layer activates
+                                   │
+                              Gyro → mouse
+                              RB → left click
+                              RT → right click
+                                   │
+                              Release LM
+                                   │
+                              Layer deactivates
 ```
 
-**Tap-hold**: Quick tap LM = mouse_side button, Hold LM = activate layer
+### Layer System
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Base (Normal)                        │
+│  Xbox Elite gamepad, M1-M4 = Steam paddles             │
+└─────────────────────────────────────────────────────────┘
+        │                    │                    │
+     Hold LM              Hold RM              Hold M4
+        ▼                    ▼                    ▼
+   ┌─────────┐          ┌─────────┐          ┌─────────┐
+   │  aim    │          │  mouse  │          │gyro_stick│
+   │gyro aim │          │stick    │          │gyro→stick│
+   └─────────┘          │mouse    │          └─────────┘
+                        └─────────┘
+
+Only one layer active at a time (first activated wins)
+```
 
 ## Configuration
 
