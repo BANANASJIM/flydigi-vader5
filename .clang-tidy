@@ -26,7 +26,9 @@ Checks: >
     -concurrency-mt-unsafe,
     -misc-const-correctness,
     -bugprone-unchecked-optional-access,
-    -readability-convert-member-functions-to-static
+    -readability-convert-member-functions-to-static,
+    -cppcoreguidelines-macro-usage,
+    -cppcoreguidelines-avoid-do-while
 
 WarningsAsErrors: '*'
 

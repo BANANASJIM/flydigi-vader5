@@ -1,4 +1,6 @@
 build/
+_deps/
+CMakeFiles/
 .cache/
 compile_commands.json
 *.o
