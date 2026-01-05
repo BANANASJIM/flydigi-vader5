@@ -1,0 +1,41 @@
+# Test config for remap suppression
+emulate_elite = false
+
+[gyro]
+mode = "off"
+
+[stick.left]
+deadzone = 128
+
+[stick.right]
+deadzone = 128
+
+# Base remaps - should suppress gamepad events
+[remap]
+M1 = "KEY_F13"
+M2 = "KEY_F14"
+M3 = "mouse_left"
+M4 = "mouse_right"
+C = "disabled"
+Z = "KEY_META"
+A = "KEY_SPACE"
+B = "KEY_E"
+
+# Hold LM - gyro mouse + button remaps
+[layer.aim]
+trigger = "LM"
+tap = "KEY_F15"
+hold_timeout = 200
+gyro = { mode = "mouse", sensitivity = 2.0 }
+stick_right = { mode = "mouse", sensitivity = 1.0 }
+remap = { A = "mouse_left", B = "mouse_right", RB = "KEY_R" }
+
+# Hold RM - gyro joystick + dpad arrows + scroll
+[layer.nav]
+trigger = "RM"
+tap = "KEY_F16"
+hold_timeout = 150
+gyro = { mode = "joystick", sensitivity = 1.0 }
+stick_left = { mode = "scroll" }
+dpad = { mode = "arrows" }
+remap = { X = "KEY_TAB", Y = "KEY_ESC" }
