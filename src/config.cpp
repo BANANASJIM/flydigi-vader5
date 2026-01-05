@@ -1,4 +1,5 @@
 #include "vader5/config.hpp"
+#include "vader5/debug.hpp"
 #include "vader5/keycodes.hpp"
 
 #include <linux/input-event-codes.h>
@@ -132,24 +133,8 @@ auto parse_layer(const std::string& name, const toml::table& tbl) -> LayerConfig
 void detect_conflicts(const Config& cfg) {
     for (const auto& [name, layer] : cfg.layers) {
         if (cfg.button_remaps.contains(layer.trigger)) {
-            std::cerr << "[ERROR] " << layer.trigger << " is trigger for '" << name
-                      << "', ignoring [remap]\n";
-        }
-    }
-
-    std::unordered_map<std::string, std::vector<std::string>> btn_layers;
-    for (const auto& [name, layer] : cfg.layers) {
-        for (const auto& [btn, unused] : layer.remap) {
-            btn_layers[btn].push_back(name);
-        }
-    }
-    for (const auto& [btn, names] : btn_layers) {
-        if (names.size() > 1) {
-            std::cerr << "[WARN] " << btn << " in";
-            for (const auto& layer_name : names) {
-                std::cerr << " '" << layer_name << "'";
-            }
-            std::cerr << " - both emit when active\n";
+            std::cerr << "[WARN] " << layer.trigger << " is trigger for '" << name
+                      << "', base [remap] will be ignored for this button\n";
         }
     }
 }
@@ -256,12 +241,13 @@ auto Config::load(const std::string& path) -> Result<Config> {
 
     detect_conflicts(cfg);
 
-    std::cerr << "[INFO] emulate_elite = " << (cfg.emulate_elite ? "true" : "false") << "\n";
-    std::cerr << "[INFO] button_remaps count: " << cfg.button_remaps.size() << "\n";
+#ifndef NDEBUG
+    DBG("emulate_elite = " << (cfg.emulate_elite ? "true" : "false"));
+    DBG("button_remaps count: " << cfg.button_remaps.size());
     for (const auto& [btn, target] : cfg.button_remaps) {
-        std::cerr << "[INFO]   " << btn << " -> type=" << static_cast<int>(target.type)
-                  << " code=" << target.code << "\n";
+        DBG("  " << btn << " -> type=" << static_cast<int>(target.type) << " code=" << target.code);
     }
+#endif
 
     return cfg;
 }

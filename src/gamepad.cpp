@@ -1,11 +1,11 @@
 #include "vader5/gamepad.hpp"
+#include "vader5/debug.hpp"
 #include "vader5/protocol.hpp"
 
 #include <linux/input-event-codes.h>
 
 #include <array>
 #include <cmath>
-#include <iostream>
 #include <thread>
 
 namespace vader5 {
@@ -305,7 +305,7 @@ void Gamepad::update_tap_hold(const GamepadState& state, const GamepadState& pre
                     now - it->second.press_time);
                 if (elapsed.count() >= layer.hold_timeout) {
                     it->second.layer_activated = true;
-                    std::cerr << "[INFO] Layer '" << name << "' activated\n";
+                    DBG("Layer '" << name << "' activated");
                 }
             }
         }
@@ -533,15 +533,7 @@ void Gamepad::process_base_remaps(const GamepadState& state, const GamepadState&
             continue;
         }
 
-        bool is_trigger = false;
-        for (const auto& [name, layer] : config_.layers) {
-            (void)name;
-            if (layer.trigger == btn) {
-                is_trigger = true;
-                break;
-            }
-        }
-        if (is_trigger) {
+        if (tap_hold_states_.contains(btn)) {
             continue;
         }
 
@@ -590,6 +582,8 @@ void Gamepad::process_layer_buttons(const GamepadState& state, const GamepadStat
             continue;
         }
 
+        DBG("Layer remap: " << btn << " -> code=" << target.code << " pressed=" << curr);
+
         if (target.type == RemapTarget::MouseButton) {
             input_->click(target.code, curr);
             input_->sync();
@@ -629,11 +623,13 @@ auto Gamepad::poll() -> Result<void> {
         }
 
         auto emit_prev = prev_state_;
-        emit_prev.buttons &= ~suppressed_buttons_;
-        emit_prev.ext_buttons &= ~suppressed_ext_;
+        emit_prev.buttons &= ~prev_suppressed_buttons_;
+        emit_prev.ext_buttons &= ~prev_suppressed_ext_;
 
         auto result = uinput_.emit(emit_state, emit_prev);
         prev_state_ = *state;
+        prev_suppressed_buttons_ = suppressed_buttons_;
+        prev_suppressed_ext_ = suppressed_ext_;
         return result;
     }
     return {};
