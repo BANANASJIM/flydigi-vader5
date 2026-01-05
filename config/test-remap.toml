@@ -1,4 +1,6 @@
-# Test config for remap suppression
+# Comprehensive test config for remap system
+# Run: sudo ./build/vader5d -c config/test-remap.toml
+
 emulate_elite = false
 
 [gyro]
@@ -10,32 +12,70 @@ deadzone = 128
 [stick.right]
 deadzone = 128
 
-# Base remaps - should suppress gamepad events
+[dpad]
+mode = "gamepad"
+
+# ═══════════════════════════════════════════════════════════════
+# Base Remaps - active when no layer is held
+# ═══════════════════════════════════════════════════════════════
 [remap]
+# Keyboard keys
 M1 = "KEY_F13"
 M2 = "KEY_F14"
-M3 = "mouse_left"
-M4 = "mouse_right"
-C = "disabled"
-Z = "KEY_META"
 A = "KEY_SPACE"
 B = "KEY_E"
+X = "KEY_R"
+Y = "KEY_Q"
 
-# Hold LM - gyro mouse + button remaps
+# Mouse buttons
+M3 = "mouse_left"
+M4 = "mouse_right"
+
+# Disabled (completely blocked)
+C = "disabled"
+
+# Meta/Super key
+Z = "KEY_LEFTMETA"
+
+# ═══════════════════════════════════════════════════════════════
+# Layer: aim - gyro mouse + mouse buttons
+# Trigger: LM (hold), Tap: KEY_F15
+# ═══════════════════════════════════════════════════════════════
 [layer.aim]
 trigger = "LM"
 tap = "KEY_F15"
 hold_timeout = 200
-gyro = { mode = "mouse", sensitivity = 2.0 }
-stick_right = { mode = "mouse", sensitivity = 1.0 }
-remap = { A = "mouse_left", B = "mouse_right", RB = "KEY_R" }
 
-# Hold RM - gyro joystick + dpad arrows + scroll
+gyro = { mode = "mouse", sensitivity = 2.0, smoothing = 0.3 }
+stick_right = { mode = "mouse", sensitivity = 1.0 }
+stick_left = { mode = "scroll", sensitivity = 1.0 }
+
+# Override base remaps - A/B become mouse clicks instead of keyboard
+remap = { A = "mouse_left", B = "mouse_right", RB = "KEY_R", LB = "KEY_LEFTSHIFT" }
+
+# ═══════════════════════════════════════════════════════════════
+# Layer: nav - gyro joystick + dpad arrows
+# Trigger: RM (hold), Tap: KEY_F16
+# ═══════════════════════════════════════════════════════════════
 [layer.nav]
 trigger = "RM"
 tap = "KEY_F16"
 hold_timeout = 150
+
 gyro = { mode = "joystick", sensitivity = 1.0 }
 stick_left = { mode = "scroll" }
 dpad = { mode = "arrows" }
-remap = { X = "KEY_TAB", Y = "KEY_ESC" }
+
+# Different remaps than base and aim layer
+remap = { X = "KEY_TAB", Y = "KEY_ESC", A = "KEY_ENTER", B = "KEY_BACKSPACE" }
+
+# ═══════════════════════════════════════════════════════════════
+# Layer: media - for testing more key types
+# Trigger: M1 (hold), Tap: mouse_middle
+# ═══════════════════════════════════════════════════════════════
+[layer.media]
+trigger = "M1"
+tap = "mouse_middle"
+hold_timeout = 180
+
+remap = { A = "KEY_LEFT", B = "KEY_RIGHT", X = "KEY_UP", Y = "KEY_DOWN", RB = "KEY_PAGEUP", LB = "KEY_PAGEDOWN" }
