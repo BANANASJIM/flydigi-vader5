@@ -76,6 +76,8 @@ constexpr std::array KEY_TABLE = {
     KeyEntry{"KEY_F16", KEY_F16},
     KeyEntry{"KEY_RIGHTCTRL", KEY_RIGHTCTRL},
     KeyEntry{"KEY_RIGHTALT", KEY_RIGHTALT},
+    KeyEntry{"KEY_LEFTMETA", KEY_LEFTMETA},
+    KeyEntry{"KEY_RIGHTMETA", KEY_RIGHTMETA},
     KeyEntry{"KEY_HOME", KEY_HOME},
     KeyEntry{"KEY_UP", KEY_UP},
     KeyEntry{"KEY_PAGEUP", KEY_PAGEUP},
