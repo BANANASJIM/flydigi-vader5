@@ -9,6 +9,7 @@
 #include <cstring>
 #include <format>
 #include <iostream>
+#include <span>
 #include <thread>
 
 #include <poll.h>
@@ -28,9 +29,16 @@ auto main(int argc, char* argv[]) -> int {
     (void)std::signal(SIGINT, handle_signal);
     (void)std::signal(SIGTERM, handle_signal);
 
+    std::string config_path = vader5::Config::default_path();
+    const std::span args(argv, static_cast<size_t>(argc)); // NOLINT
+    for (size_t i = 1; i < args.size(); ++i) {
+        if ((std::strcmp(args[i], "-c") == 0 || std::strcmp(args[i], "--config") == 0) &&
+            i + 1 < args.size()) {
+            config_path = args[++i];
+        }
+    }
+
     vader5::Config cfg;
-    std::string config_path =
-        (argc > 1) ? std::string(argv[1]) : vader5::Config::default_path(); // NOLINT
     if (auto loaded = vader5::Config::load(config_path); loaded) {
         cfg = *loaded;
         std::cout << std::format("vader5d: Loaded config from {}\n", config_path);

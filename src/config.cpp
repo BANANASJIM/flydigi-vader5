@@ -255,6 +255,14 @@ auto Config::load(const std::string& path) -> Result<Config> {
     }
 
     detect_conflicts(cfg);
+
+    std::cerr << "[INFO] emulate_elite = " << (cfg.emulate_elite ? "true" : "false") << "\n";
+    std::cerr << "[INFO] button_remaps count: " << cfg.button_remaps.size() << "\n";
+    for (const auto& [btn, target] : cfg.button_remaps) {
+        std::cerr << "[INFO]   " << btn << " -> type=" << static_cast<int>(target.type)
+                  << " code=" << target.code << "\n";
+    }
+
     return cfg;
 }
 

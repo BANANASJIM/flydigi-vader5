@@ -18,6 +18,28 @@ constexpr float SCROLL_SCALE = 0.00005F;
 constexpr float GYRO_MAX = 32768.0F;
 constexpr int AXIS_MAX = 32767;
 
+constexpr auto button_to_masks(std::string_view name) -> std::pair<uint16_t, uint8_t> {
+    if (name == "A") { return {PAD_A, 0}; }
+    if (name == "B") { return {PAD_B, 0}; }
+    if (name == "X") { return {PAD_X, 0}; }
+    if (name == "Y") { return {PAD_Y, 0}; }
+    if (name == "LB") { return {PAD_LB, 0}; }
+    if (name == "RB") { return {PAD_RB, 0}; }
+    if (name == "SELECT") { return {PAD_SELECT, 0}; }
+    if (name == "START") { return {PAD_START, 0}; }
+    if (name == "L3") { return {PAD_L3, 0}; }
+    if (name == "R3") { return {PAD_R3, 0}; }
+    if (name == "C") { return {0, EXT_C}; }
+    if (name == "Z") { return {0, EXT_Z}; }
+    if (name == "M1") { return {0, EXT_M1}; }
+    if (name == "M2") { return {0, EXT_M2}; }
+    if (name == "M3") { return {0, EXT_M3}; }
+    if (name == "M4") { return {0, EXT_M4}; }
+    if (name == "LM") { return {0, EXT_LM}; }
+    if (name == "RM") { return {0, EXT_RM}; }
+    return {0, 0};
+}
+
 auto apply_curve(float value, float curve, float deadzone = 0.0F) -> float {
     if (curve == 1.0F) {
         return value;
@@ -496,11 +518,21 @@ void Gamepad::process_layer_dpad(const GamepadState& state) {
 }
 
 void Gamepad::process_base_remaps(const GamepadState& state, const GamepadState& prev) {
-    if (config_.emulate_elite || !input_) {
+    if (config_.emulate_elite) {
         return;
     }
 
+    const auto* active_layer = get_active_layer();
+
     for (const auto& [btn, target] : config_.button_remaps) {
+        auto [btn_mask, ext_mask] = button_to_masks(btn);
+        suppressed_buttons_ |= btn_mask;
+        suppressed_ext_ |= ext_mask;
+
+        if (target.type == RemapTarget::Disabled) {
+            continue;
+        }
+
         bool is_trigger = false;
         for (const auto& [name, layer] : config_.layers) {
             (void)name;
@@ -510,6 +542,14 @@ void Gamepad::process_base_remaps(const GamepadState& state, const GamepadState&
             }
         }
         if (is_trigger) {
+            continue;
+        }
+
+        if (active_layer != nullptr && active_layer->remap.contains(btn)) {
+            continue;
+        }
+
+        if (!input_) {
             continue;
         }
 
@@ -530,32 +570,26 @@ void Gamepad::process_base_remaps(const GamepadState& state, const GamepadState&
 }
 
 void Gamepad::process_layer_buttons(const GamepadState& state, const GamepadState& prev) {
-    if (!input_) {
-        return;
-    }
-
     const auto* layer = get_active_layer();
     if (layer == nullptr) {
         return;
     }
 
-    constexpr std::array<std::string_view, 20> ALL_BUTTONS = {
-        "A",  "B",  "X",  "Y",  "RB", "LB", "START", "SELECT", "L3", "R3",
-        "RT", "LT", "C",  "Z",  "M1", "M2", "M3",    "M4",     "LM", "RM"};
+    for (const auto& [btn, target] : layer->remap) {
+        auto [btn_mask, ext_mask] = button_to_masks(btn);
+        suppressed_buttons_ |= btn_mask;
+        suppressed_ext_ |= ext_mask;
 
-    for (auto name : ALL_BUTTONS) {
-        const bool curr = is_button_pressed(state, name);
-        const bool old = is_button_pressed(prev, name);
+        if (target.type == RemapTarget::Disabled || !input_) {
+            continue;
+        }
+
+        const bool curr = is_button_pressed(state, btn);
+        const bool old = is_button_pressed(prev, btn);
         if (curr == old) {
             continue;
         }
 
-        auto it = layer->remap.find(std::string(name));
-        if (it == layer->remap.end()) {
-            continue;
-        }
-
-        const auto& target = it->second;
         if (target.type == RemapTarget::MouseButton) {
             input_->click(target.code, curr);
             input_->sync();
@@ -574,6 +608,9 @@ auto Gamepad::poll() -> Result<void> {
     }
 
     if (auto state = ext_report::parse({buf.data(), *bytes})) {
+        suppressed_buttons_ = 0;
+        suppressed_ext_ = 0;
+
         update_tap_hold(*state, prev_state_);
         process_gyro(*state);
         process_mouse_stick(*state);
@@ -583,13 +620,20 @@ auto Gamepad::poll() -> Result<void> {
         process_layer_buttons(*state, prev_state_);
 
         auto emit_state = *state;
+        emit_state.buttons &= ~suppressed_buttons_;
+        emit_state.ext_buttons &= ~suppressed_ext_;
+
         if (get_effective_gyro().mode == GyroConfig::Joystick) {
             emit_state.right_x = static_cast<int16_t>(gyro_stick_x_);
             emit_state.right_y = static_cast<int16_t>(gyro_stick_y_);
         }
 
-        auto result = uinput_.emit(emit_state, prev_state_);
-        prev_state_ = emit_state;
+        auto emit_prev = prev_state_;
+        emit_prev.buttons &= ~suppressed_buttons_;
+        emit_prev.ext_buttons &= ~suppressed_ext_;
+
+        auto result = uinput_.emit(emit_state, emit_prev);
+        prev_state_ = *state;
         return result;
     }
     return {};
