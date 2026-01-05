@@ -68,6 +68,10 @@ class Gamepad {
     bool dpad_down_{false};
     bool dpad_left_{false};
     bool dpad_right_{false};
+    uint16_t suppressed_buttons_{0};
+    uint8_t suppressed_ext_{0};
+    uint16_t prev_suppressed_buttons_{0};
+    uint8_t prev_suppressed_ext_{0};
 };
 
 } // namespace vader5

@@ -17,6 +17,9 @@ cd flydigi-vader5
 ./install/install.sh          # build + udev rules + config
 sudo ./build/vader5d
 
+# Custom config
+sudo ./build/vader5d -c /path/to/config.toml
+
 # Or full install with systemd service
 ./install/install.sh install
 sudo systemctl enable --now vader5d

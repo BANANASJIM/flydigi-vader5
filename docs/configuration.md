@@ -5,11 +5,12 @@ vader5d uses TOML configuration files.
 ## File Location
 
 ```bash
-# Default path
-~/.config/vader5/config.toml
+# Default path (relative to working directory)
+config/config.toml
 
-# Or specify custom path
-sudo ./build/vader5d /path/to/config.toml
+# Specify custom path
+sudo ./build/vader5d -c /path/to/config.toml
+sudo ./build/vader5d --config /path/to/config.toml
 ```
 
 ## Basic Settings
@@ -89,19 +90,33 @@ remap = {
 
 ## Button Remapping (Base Layer)
 
-Remap extended buttons in base mode:
+Remap buttons in base mode. Requires `emulate_elite = false`.
 
 ```toml
+emulate_elite = false    # Required for base remaps
+
 [remap]
 M1 = "KEY_F13"
 M2 = "KEY_F14"
-M3 = "KEY_F15"
-M4 = "KEY_F16"
-C = "KEY_TAB"
-Z = "KEY_ESC"
-LM = "KEY_LEFTALT"
-RM = "KEY_LEFTCTRL"
+M3 = "mouse_left"
+M4 = "mouse_right"
+C = "disabled"           # Disable button completely
+A = "KEY_SPACE"
+B = "KEY_E"
 ```
+
+### emulate_elite Mode
+
+| Mode | Description |
+|------|-------------|
+| `true` | Xbox Elite emulation, M1-M4 as Steam paddles, `[remap]` ignored |
+| `false` | Standard gamepad, `[remap]` active, buttons suppressed from gamepad |
+
+When `emulate_elite = false`:
+- Remapped buttons emit keyboard/mouse events only
+- Original gamepad button is suppressed (no duplicate input)
+- `disabled` completely blocks the button
+- Layer remaps override base remaps for the same button
 
 ## Full Example
 
