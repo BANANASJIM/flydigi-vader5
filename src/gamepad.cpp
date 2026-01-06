@@ -674,6 +674,13 @@ auto Gamepad::send_rumble(uint8_t left, uint8_t right) -> bool {
     return hidraw_.write(pkt).has_value();
 }
 
+void Gamepad::poll_ff() {
+    if (auto rumble = uinput_.poll_ff()) {
+        send_rumble(static_cast<uint8_t>(rumble->strong >> 8),
+                    static_cast<uint8_t>(rumble->weak >> 8));
+    }
+}
+
 Gamepad::~Gamepad() {
     send_test_mode(hidraw_, false);
 }
