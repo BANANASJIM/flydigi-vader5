@@ -281,49 +281,52 @@ auto Uinput::emit(const GamepadState& state, const GamepadState& prev) const -> 
 }
 
 auto Uinput::poll_ff() -> std::optional<RumbleEffect> {
+    std::optional<RumbleEffect> result;
     input_event ev{};
-    const auto bytes = ::read(fd_, &ev, sizeof(ev));
-    if (bytes != sizeof(ev)) {
-        return std::nullopt;
-    }
 
-    if (ev.type == EV_UINPUT && ev.code == UI_FF_UPLOAD) {
-        uinput_ff_upload upload{};
-        upload.request_id = static_cast<__u32>(ev.value);
-        (void)ioctl(fd_, UI_BEGIN_FF_UPLOAD, &upload);
-
-        if (upload.effect.type == FF_RUMBLE && upload.effect.id >= 0 &&
-            static_cast<size_t>(upload.effect.id) < ff_effects_.size()) {
-            ff_effects_[static_cast<size_t>(upload.effect.id)] = {
-                upload.effect.u.rumble.strong_magnitude,
-                upload.effect.u.rumble.weak_magnitude,
-            };
+    while (true) {
+        const auto bytes = ::read(fd_, &ev, sizeof(ev));
+        if (bytes != sizeof(ev)) {
+            break;
         }
-        upload.retval = 0;
-        (void)ioctl(fd_, UI_END_FF_UPLOAD, &upload);
-        return std::nullopt;
-    }
 
-    if (ev.type == EV_UINPUT && ev.code == UI_FF_ERASE) {
-        uinput_ff_erase erase{};
-        erase.request_id = static_cast<__u32>(ev.value);
-        (void)ioctl(fd_, UI_BEGIN_FF_ERASE, &erase);
-        if (erase.effect_id < ff_effects_.size()) {
-            ff_effects_[erase.effect_id] = {};
+        if (ev.type == EV_UINPUT && ev.code == UI_FF_UPLOAD) {
+            uinput_ff_upload upload{};
+            upload.request_id = static_cast<__u32>(ev.value);
+            (void)ioctl(fd_, UI_BEGIN_FF_UPLOAD, &upload);
+
+            if (upload.effect.type == FF_RUMBLE && upload.effect.id >= 0 &&
+                static_cast<size_t>(upload.effect.id) < ff_effects_.size()) {
+                ff_effects_[static_cast<size_t>(upload.effect.id)] = {
+                    upload.effect.u.rumble.strong_magnitude,
+                    upload.effect.u.rumble.weak_magnitude,
+                };
+            }
+            upload.retval = 0;
+            (void)ioctl(fd_, UI_END_FF_UPLOAD, &upload);
+            continue;
         }
-        erase.retval = 0;
-        (void)ioctl(fd_, UI_END_FF_ERASE, &erase);
-        return std::nullopt;
-    }
 
-    if (ev.type == EV_FF && ev.code < ff_effects_.size()) {
-        if (ev.value > 0) {
-            return ff_effects_[static_cast<size_t>(ev.code)];
+        if (ev.type == EV_UINPUT && ev.code == UI_FF_ERASE) {
+            uinput_ff_erase erase{};
+            erase.request_id = static_cast<__u32>(ev.value);
+            (void)ioctl(fd_, UI_BEGIN_FF_ERASE, &erase);
+            if (erase.effect_id < ff_effects_.size()) {
+                ff_effects_[erase.effect_id] = {};
+            }
+            erase.retval = 0;
+            (void)ioctl(fd_, UI_END_FF_ERASE, &erase);
+            continue;
         }
-        return RumbleEffect{0, 0};
+
+        if (ev.type == EV_FF && ev.code < ff_effects_.size()) {
+            if (!result) {
+                result = ev.value > 0 ? ff_effects_[ev.code] : RumbleEffect{0, 0};
+            }
+        }
     }
 
-    return std::nullopt;
+    return result;
 }
 
 // InputDevice - separate mouse/keyboard device
