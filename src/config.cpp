@@ -98,6 +98,9 @@ auto parse_layer(const std::string& name, const toml::table& tbl) -> LayerConfig
     if (const auto* val = tbl["hold_timeout"].as_integer()) {
         layer.hold_timeout = static_cast<int>(val->get());
     }
+    if (const auto* val = tbl["activation"].as_string()) {
+        layer.activation = (val->get() == "toggle") ? LayerConfig::Toggle : LayerConfig::Hold;
+    }
     if (const auto* sub = tbl["gyro"].as_table()) {
         GyroConfig gc;
         parse_gyro(*sub, gc);
