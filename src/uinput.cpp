@@ -293,8 +293,9 @@ auto Uinput::poll_ff() -> std::optional<RumbleEffect> {
         if (ev.type == EV_UINPUT && ev.code == UI_FF_UPLOAD) {
             uinput_ff_upload upload{};
             upload.request_id = static_cast<__u32>(ev.value);
-            (void)ioctl(fd_, UI_BEGIN_FF_UPLOAD, &upload);
-
+            if (ioctl(fd_, UI_BEGIN_FF_UPLOAD, &upload) < 0) {
+                continue;
+            }
             if (upload.effect.type == FF_RUMBLE && upload.effect.id >= 0 &&
                 static_cast<size_t>(upload.effect.id) < ff_effects_.size()) {
                 ff_effects_[static_cast<size_t>(upload.effect.id)] = {
@@ -310,7 +311,9 @@ auto Uinput::poll_ff() -> std::optional<RumbleEffect> {
         if (ev.type == EV_UINPUT && ev.code == UI_FF_ERASE) {
             uinput_ff_erase erase{};
             erase.request_id = static_cast<__u32>(ev.value);
-            (void)ioctl(fd_, UI_BEGIN_FF_ERASE, &erase);
+            if (ioctl(fd_, UI_BEGIN_FF_ERASE, &erase) < 0) {
+                continue;
+            }
             if (erase.effect_id < ff_effects_.size()) {
                 ff_effects_[erase.effect_id] = {};
             }
@@ -320,9 +323,7 @@ auto Uinput::poll_ff() -> std::optional<RumbleEffect> {
         }
 
         if (ev.type == EV_FF && ev.code < ff_effects_.size()) {
-            if (!result) {
-                result = ev.value > 0 ? ff_effects_[ev.code] : RumbleEffect{0, 0};
-            }
+            result = ev.value > 0 ? ff_effects_[ev.code] : RumbleEffect{0, 0};
         }
     }
 
