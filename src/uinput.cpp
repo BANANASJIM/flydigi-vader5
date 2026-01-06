@@ -36,7 +36,7 @@ constexpr std::array<int, 8> DEFAULT_EXT_CODES = {
 
 auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char* name)
     -> Result<Uinput> {
-    const int file_descriptor = ::open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+    const int file_descriptor = ::open("/dev/uinput", O_RDWR | O_NONBLOCK);
     if (file_descriptor < 0) {
         return std::unexpected(std::error_code(errno, std::system_category()));
     }
@@ -44,6 +44,8 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char
     (void)ioctl(file_descriptor, UI_SET_EVBIT, EV_KEY);
     (void)ioctl(file_descriptor, UI_SET_EVBIT, EV_ABS);
     (void)ioctl(file_descriptor, UI_SET_EVBIT, EV_SYN);
+    (void)ioctl(file_descriptor, UI_SET_EVBIT, EV_FF);
+    (void)ioctl(file_descriptor, UI_SET_FFBIT, FF_RUMBLE);
 
     for (const int btn : {BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST, BTN_TL, BTN_TR, BTN_SELECT,
                           BTN_START, BTN_MODE, BTN_THUMBL, BTN_THUMBR}) {
@@ -106,6 +108,7 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char
     setup.id.vendor = ELITE_VENDOR_ID;
     setup.id.product = ELITE_PRODUCT_ID;
     setup.id.version = 1;
+    setup.ff_effects_max = 16;
 
     (void)ioctl(file_descriptor, UI_DEV_SETUP, &setup);
     if (ioctl(file_descriptor, UI_DEV_CREATE) < 0) {
@@ -130,7 +133,8 @@ Uinput::~Uinput() {
     }
 }
 
-Uinput::Uinput(Uinput&& other) noexcept : fd_(other.fd_), ext_mappings_(other.ext_mappings_) {
+Uinput::Uinput(Uinput&& other) noexcept
+    : fd_(other.fd_), ext_mappings_(other.ext_mappings_), ff_effects_(other.ff_effects_) {
     other.fd_ = -1;
 }
 
@@ -142,6 +146,7 @@ auto Uinput::operator=(Uinput&& other) noexcept -> Uinput& {
         }
         fd_ = other.fd_;
         ext_mappings_ = other.ext_mappings_;
+        ff_effects_ = other.ff_effects_;
         other.fd_ = -1;
     }
     return *this;
@@ -273,6 +278,56 @@ auto Uinput::emit(const GamepadState& state, const GamepadState& prev) const -> 
 
     sync();
     return {};
+}
+
+auto Uinput::poll_ff() -> std::optional<RumbleEffect> {
+    std::optional<RumbleEffect> result;
+    input_event ev{};
+
+    while (true) {
+        const auto bytes = ::read(fd_, &ev, sizeof(ev));
+        if (bytes != sizeof(ev)) {
+            break;
+        }
+
+        if (ev.type == EV_UINPUT && ev.code == UI_FF_UPLOAD) {
+            uinput_ff_upload upload{};
+            upload.request_id = static_cast<__u32>(ev.value);
+            if (ioctl(fd_, UI_BEGIN_FF_UPLOAD, &upload) < 0) {
+                continue;
+            }
+            if (upload.effect.type == FF_RUMBLE && upload.effect.id >= 0 &&
+                static_cast<size_t>(upload.effect.id) < ff_effects_.size()) {
+                ff_effects_[static_cast<size_t>(upload.effect.id)] = {
+                    upload.effect.u.rumble.strong_magnitude,
+                    upload.effect.u.rumble.weak_magnitude,
+                };
+            }
+            upload.retval = 0;
+            (void)ioctl(fd_, UI_END_FF_UPLOAD, &upload);
+            continue;
+        }
+
+        if (ev.type == EV_UINPUT && ev.code == UI_FF_ERASE) {
+            uinput_ff_erase erase{};
+            erase.request_id = static_cast<__u32>(ev.value);
+            if (ioctl(fd_, UI_BEGIN_FF_ERASE, &erase) < 0) {
+                continue;
+            }
+            if (erase.effect_id < ff_effects_.size()) {
+                ff_effects_[erase.effect_id] = {};
+            }
+            erase.retval = 0;
+            (void)ioctl(fd_, UI_END_FF_ERASE, &erase);
+            continue;
+        }
+
+        if (ev.type == EV_FF && ev.code < ff_effects_.size()) {
+            result = ev.value > 0 ? ff_effects_[ev.code] : RumbleEffect{0, 0};
+        }
+    }
+
+    return result;
 }
 
 // InputDevice - separate mouse/keyboard device

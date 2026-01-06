@@ -2,6 +2,7 @@
 #include "vader5/gamepad.hpp"
 #include "vader5/types.hpp"
 
+#include <array>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -57,16 +58,19 @@ auto main(int argc, char* argv[]) -> int {
         }
 
         std::cout << "vader5d: Device connected, running...\n";
-        pollfd pfd{.fd = gamepad->fd(), .events = POLLIN, .revents = 0};
+        std::array<pollfd, 2> pfds{{
+            {.fd = gamepad->fd(), .events = POLLIN, .revents = 0},
+            {.fd = gamepad->ff_fd(), .events = POLLIN, .revents = 0},
+        }};
 
         while (g_running.load(std::memory_order_relaxed)) {
-            const int ret = poll(&pfd, 1, POLL_TIMEOUT_MS);
+            const int ret = poll(pfds.data(), pfds.size(), POLL_TIMEOUT_MS);
             if (ret < 0 && errno != EINTR) {
                 std::cerr << std::format("vader5d: poll error: {}\n", std::strerror(errno));
                 break;
             }
 
-            if (ret > 0 && (pfd.revents & POLLIN) != 0) {
+            if (ret > 0 && (pfds[0].revents & POLLIN) != 0) {
                 auto result = gamepad->poll();
                 if (!result) {
                     auto ec = result.error();
@@ -81,7 +85,11 @@ auto main(int argc, char* argv[]) -> int {
                 }
             }
 
-            if ((pfd.revents & (POLLHUP | POLLERR)) != 0) {
+            if (ret > 0 && (pfds[1].revents & POLLIN) != 0) {
+                gamepad->poll_ff();
+            }
+
+            if ((pfds[0].revents & (POLLHUP | POLLERR)) != 0) {
                 std::cout << "vader5d: Device disconnected\n";
                 break;
             }

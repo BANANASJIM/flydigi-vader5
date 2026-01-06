@@ -9,6 +9,11 @@
 
 namespace vader5 {
 
+struct RumbleEffect {
+    uint16_t strong{0};
+    uint16_t weak{0};
+};
+
 class Uinput {
   public:
     static auto create(std::span<const std::optional<int>> ext_mappings,
@@ -25,11 +30,13 @@ class Uinput {
     }
     auto emit(const GamepadState& state, const GamepadState& prev) const -> Result<void>;
     void sync() const;
+    auto poll_ff() -> std::optional<RumbleEffect>;
 
   private:
     explicit Uinput(int file_descriptor, std::span<const std::optional<int>> mappings);
     int fd_{-1};
     std::array<std::optional<int>, 8> ext_mappings_{};
+    std::array<RumbleEffect, 16> ff_effects_{};
 
     void emit_key(int code, int value) const;
     void emit_abs(int code, int value) const;

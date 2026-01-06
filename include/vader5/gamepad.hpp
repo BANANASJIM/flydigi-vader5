@@ -26,9 +26,13 @@ class Gamepad {
     Gamepad& operator=(const Gamepad&) = delete;
 
     auto poll() -> Result<void>;
+    void poll_ff();
     auto send_rumble(uint8_t left, uint8_t right) -> bool;
     [[nodiscard]] auto fd() const noexcept -> int {
         return hidraw_.fd();
+    }
+    [[nodiscard]] auto ff_fd() const noexcept -> int {
+        return uinput_.fd();
     }
 
   private:
