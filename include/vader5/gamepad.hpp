@@ -43,7 +43,9 @@ class Gamepad {
     void process_layer_buttons(const GamepadState& state, const GamepadState& prev);
     void process_base_remaps(const GamepadState& state, const GamepadState& prev);
     void update_tap_hold(const GamepadState& state, const GamepadState& prev);
+    void update_led();
     void emit_tap(const RemapTarget& tap);
+    auto send_led(const LedConfig& led) -> bool;
     auto get_active_layer() -> const LayerConfig*;
     static auto is_button_pressed(const GamepadState& state, std::string_view name) -> bool;
 
@@ -75,6 +77,7 @@ class Gamepad {
     uint8_t suppressed_ext_{0};
     uint16_t prev_suppressed_buttons_{0};
     uint8_t prev_suppressed_ext_{0};
+    const LayerConfig* prev_layer_{nullptr};
 };
 
 } // namespace vader5

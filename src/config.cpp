@@ -37,6 +37,59 @@ auto parse_dpad_mode(std::string_view mode) -> DpadConfig::Mode {
     return mode == "arrows" ? DpadConfig::Arrows : DpadConfig::Gamepad;
 }
 
+auto parse_led_mode(std::string_view mode) -> LedConfig::Mode {
+    if (mode == "off") {
+        return LedConfig::Off;
+    }
+    if (mode == "breathing") {
+        return LedConfig::Breathing;
+    }
+    return LedConfig::Static;
+}
+
+auto parse_hex_color(std::string_view color, uint8_t& r, uint8_t& g, uint8_t& b) -> bool {
+    if (color.size() != 7 || color[0] != '#') {
+        return false;
+    }
+    auto hex = [](char c) -> int {
+        if (c >= '0' && c <= '9') {
+            return c - '0';
+        }
+        if (c >= 'a' && c <= 'f') {
+            return c - 'a' + 10;
+        }
+        if (c >= 'A' && c <= 'F') {
+            return c - 'A' + 10;
+        }
+        return -1;
+    };
+    const int rh = hex(color[1]);
+    const int rl = hex(color[2]);
+    const int gh = hex(color[3]);
+    const int gl = hex(color[4]);
+    const int bh = hex(color[5]);
+    const int bl = hex(color[6]);
+    if (rh < 0 || rl < 0 || gh < 0 || gl < 0 || bh < 0 || bl < 0) {
+        return false;
+    }
+    r = static_cast<uint8_t>((rh << 4) | rl);
+    g = static_cast<uint8_t>((gh << 4) | gl);
+    b = static_cast<uint8_t>((bh << 4) | bl);
+    return true;
+}
+
+void parse_led(const toml::table& tbl, LedConfig& cfg) {
+    if (const auto* val = tbl["mode"].as_string()) {
+        cfg.mode = parse_led_mode(val->get());
+    }
+    if (const auto* val = tbl["brightness"].as_integer()) {
+        cfg.brightness = static_cast<uint8_t>(std::clamp<int64_t>(val->get(), 0, 100));
+    }
+    if (const auto* val = tbl["color"].as_string()) {
+        parse_hex_color(val->get(), cfg.r, cfg.g, cfg.b);
+    }
+}
+
 void parse_gyro(const toml::table& tbl, GyroConfig& cfg) {
     if (const auto* val = tbl["mode"].as_string()) {
         cfg.mode = parse_gyro_mode(val->get());
@@ -120,6 +173,11 @@ auto parse_layer(const std::string& name, const toml::table& tbl) -> LayerConfig
         DpadConfig dc;
         parse_dpad(*sub, dc);
         layer.dpad = dc;
+    }
+    if (const auto* sub = tbl["led"].as_table()) {
+        LedConfig lc;
+        parse_led(*sub, lc);
+        layer.led = lc;
     }
     if (const auto* sub = tbl["remap"].as_table()) {
         for (const auto& [key, node] : *sub) {
@@ -218,6 +276,9 @@ auto Config::load(const std::string& path) -> Result<Config> {
     }
     if (const auto* dpad_tbl = tbl["dpad"].as_table()) {
         parse_dpad(*dpad_tbl, cfg.dpad);
+    }
+    if (const auto* led_tbl = tbl["led"].as_table()) {
+        parse_led(*led_tbl, cfg.led);
     }
 
     if (const auto* layer_tbl = tbl["layer"].as_table()) {
