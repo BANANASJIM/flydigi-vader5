@@ -41,10 +41,12 @@ struct DpadConfig {
 };
 
 struct LayerConfig {
+    enum Activation { Hold, Toggle };
     std::string name;
     std::string trigger;
     std::optional<RemapTarget> tap;
     int hold_timeout{200};
+    Activation activation{Hold};
 
     std::optional<GyroConfig> gyro;
     std::optional<StickConfig> stick_left;

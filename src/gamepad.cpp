@@ -254,12 +254,32 @@ auto Gamepad::is_button_pressed(const GamepadState& state, std::string_view name
 
 auto Gamepad::get_active_layer() -> const LayerConfig* {
     for (const auto& [name, layer] : config_.layers) {
+        if (toggled_layers_.contains(name)) {
+            return &layer;
+        }
         auto it = tap_hold_states_.find(name);
         if (it != tap_hold_states_.end() && it->second.layer_activated) {
             return &layer;
         }
     }
     return nullptr;
+}
+
+void Gamepad::emit_tap(const RemapTarget& tap) {
+    if (!input_) {
+        return;
+    }
+    if (tap.type == RemapTarget::Key) {
+        input_->key(tap.code, true);
+        input_->sync();
+        input_->key(tap.code, false);
+        input_->sync();
+    } else if (tap.type == RemapTarget::MouseButton) {
+        input_->click(tap.code, true);
+        input_->sync();
+        input_->click(tap.code, false);
+        input_->sync();
+    }
 }
 
 void Gamepad::update_tap_hold(const GamepadState& state, const GamepadState& prev) {
@@ -269,45 +289,53 @@ void Gamepad::update_tap_hold(const GamepadState& state, const GamepadState& pre
     for (const auto& [name, layer] : config_.layers) {
         const bool curr = is_button_pressed(state, layer.trigger);
         const bool old = is_button_pressed(prev, layer.trigger);
+        const bool released = !curr && old;
+        const bool pressed = curr && !old;
 
-        // If another layer is active, skip this layer's trigger processing
         if (active != nullptr && active != &layer) {
             continue;
         }
 
-        if (curr && !old) {
-            // Only start tap-hold if no layer is active
-            if (active == nullptr) {
-                tap_hold_states_[name] = {name, now, false};
+        if (layer.activation == LayerConfig::Toggle) {
+            if (released && toggled_layers_.contains(name)) {
+                toggled_layers_.erase(name);
+                DBG("Layer '" << name << "' toggled off");
+            } else if (released && active == nullptr) {
+                tap_hold_states_.clear();
+                toggled_layers_.insert(name);
+                DBG("Layer '" << name << "' toggled on");
             }
-        } else if (!curr && old) {
-            auto it = tap_hold_states_.find(name);
-            if (it != tap_hold_states_.end() && !it->second.layer_activated) {
-                if (layer.tap && input_) {
-                    if (layer.tap->type == RemapTarget::Key) {
-                        input_->key(layer.tap->code, true);
-                        input_->sync();
-                        input_->key(layer.tap->code, false);
-                        input_->sync();
-                    } else if (layer.tap->type == RemapTarget::MouseButton) {
-                        input_->click(layer.tap->code, true);
-                        input_->sync();
-                        input_->click(layer.tap->code, false);
-                        input_->sync();
-                    }
-                }
+            continue;
+        }
+
+        // Hold mode
+        if (pressed && active == nullptr) {
+            tap_hold_states_[name] = {name, now, false};
+            continue;
+        }
+
+        auto it = tap_hold_states_.find(name);
+        if (it == tap_hold_states_.end()) {
+            continue;
+        }
+
+        if (released) {
+            if (!it->second.layer_activated && layer.tap) {
+                emit_tap(*layer.tap);
             }
-            tap_hold_states_.erase(name);
-        } else if (curr) {
-            auto it = tap_hold_states_.find(name);
-            if (it != tap_hold_states_.end() && !it->second.layer_activated) {
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    now - it->second.press_time);
-                if (elapsed.count() >= layer.hold_timeout) {
-                    it->second.layer_activated = true;
-                    DBG("Layer '" << name << "' activated");
-                }
-            }
+            tap_hold_states_.erase(it);
+            continue;
+        }
+
+        if (!it->second.layer_activated && !toggled_layers_.empty()) {
+            tap_hold_states_.erase(it);
+            continue;
+        }
+
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.press_time);
+        if (!it->second.layer_activated && elapsed.count() >= layer.hold_timeout) {
+            it->second.layer_activated = true;
+            DBG("Layer '" << name << "' activated");
         }
     }
 }

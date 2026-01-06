@@ -77,8 +77,9 @@ mode = "off"                # off / mouse / joystick
 # Hold LM for gyro aim + full mouse mode
 [layer.aim]
 trigger = "LM"              # trigger button: A/B/X/Y/LB/RB/LT/RT/M1-M4/LM/RM/C/Z
-tap = "mouse_side"          # tap action: KEY_*, mouse_left/right/middle/side/extra
-hold_timeout = 200          # ms before layer activates
+activation = "hold"         # hold (default) or toggle
+tap = "mouse_side"          # tap action (hold mode): KEY_*, mouse_left/right/middle/side/extra
+hold_timeout = 200          # ms before layer activates (hold mode)
 gyro = { mode = "mouse", sensitivity = 2.0 }
 stick_left = { mode = "scroll" }   # mode: gamepad / mouse / scroll
 stick_right = { mode = "mouse", sensitivity = 1.0 }  # mode: gamepad / mouse
@@ -91,6 +92,12 @@ trigger = "RM"
 stick_right = { mode = "mouse", sensitivity = 1.5 }
 dpad = { mode = "arrows" }
 remap = { A = "mouse_left", B = "mouse_right" }
+
+# Toggle M1: tap to enable gyro, tap again to disable
+[layer.gyro_toggle]
+trigger = "M1"
+activation = "toggle"
+gyro = { mode = "mouse", sensitivity = 1.5 }
 ```
 
 See [docs/configuration.md](docs/configuration.md) for full options.

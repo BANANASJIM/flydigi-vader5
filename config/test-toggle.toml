@@ -1,0 +1,19 @@
+emulate_elite = true
+
+[gyro]
+mode = "off"
+
+# Toggle mode: tap M1 to activate gyro, tap again to deactivate
+[layer.gyro_toggle]
+trigger = "C"
+activation = "toggle"
+gyro = { mode = "mouse", sensitivity = 2.0, smoothing = 0.3 }
+
+# Hold mode for comparison: hold LM for mouse mode
+[layer.aim]
+trigger = "LM"
+activation = "hold"
+tap = "KEY_TAB"
+hold_timeout = 200
+gyro = { mode = "mouse", sensitivity = 1.5 }
+stick_right = { mode = "mouse", sensitivity = 1.0 }

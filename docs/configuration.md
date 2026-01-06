@@ -51,8 +51,9 @@ Hold a trigger button to activate a layer. Release to return to base mode.
 ```toml
 [layer.name]
 trigger = "LM"            # which button activates this layer
-tap = "KEY_TAB"           # optional: key to send on quick tap
-hold_timeout = 200        # ms before layer activates (for tap-hold)
+activation = "hold"       # hold (default) or toggle
+tap = "KEY_TAB"           # optional: key to send on quick tap (hold mode only)
+hold_timeout = 200        # ms before layer activates (hold mode only)
 
 # Override settings while layer is active
 gyro = { mode = "mouse", sensitivity = 2.0 }
@@ -68,7 +69,14 @@ remap = { RB = "mouse_left", RT = "mouse_right", A = "KEY_SPACE" }
 
 Available triggers: `A`, `B`, `X`, `Y`, `LB`, `RB`, `LT`, `RT`, `M1`, `M2`, `M3`, `M4`, `LM`, `RM`, `C`, `Z`
 
-### Tap-Hold Behavior
+### Activation Modes
+
+| Mode | Behavior |
+|------|----------|
+| `hold` | Hold trigger to activate, release to deactivate (default) |
+| `toggle` | Tap trigger once to activate, tap again to deactivate |
+
+### Tap-Hold Behavior (hold mode only)
 
 When `tap` is set:
 - Quick press + release (< hold_timeout) = send tap key
@@ -150,6 +158,12 @@ hold_timeout = 150
 stick_right = { mode = "mouse", sensitivity = 1.5 }
 dpad = { mode = "arrows" }
 remap = { A = "mouse_left", B = "mouse_right" }
+
+# Toggle M1: gyro always on until toggled off
+[layer.gyro_toggle]
+trigger = "M1"
+activation = "toggle"
+gyro = { mode = "mouse", sensitivity = 1.5 }
 ```
 
 ## Key Codes Reference

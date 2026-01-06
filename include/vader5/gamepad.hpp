@@ -5,6 +5,7 @@
 #include "uinput.hpp"
 
 #include <chrono>
+#include <unordered_set>
 
 namespace vader5 {
 
@@ -42,6 +43,7 @@ class Gamepad {
     void process_layer_buttons(const GamepadState& state, const GamepadState& prev);
     void process_base_remaps(const GamepadState& state, const GamepadState& prev);
     void update_tap_hold(const GamepadState& state, const GamepadState& prev);
+    void emit_tap(const RemapTarget& tap);
     auto get_active_layer() -> const LayerConfig*;
     static auto is_button_pressed(const GamepadState& state, std::string_view name) -> bool;
 
@@ -56,6 +58,7 @@ class Gamepad {
     Config config_;
     GamepadState prev_state_{};
     std::unordered_map<std::string, TapHoldState> tap_hold_states_;
+    std::unordered_set<std::string> toggled_layers_;
     float gyro_vel_x_{0.0F};
     float gyro_vel_y_{0.0F};
     float gyro_accum_x_{0.0F};
