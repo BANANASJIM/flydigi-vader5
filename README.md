@@ -45,6 +45,16 @@ Press LM
                               Release LM → Layer deactivates
 ```
 
+### Toggle Mode
+
+Alternative activation - tap once to enable, tap again to disable:
+
+```
+Tap M1 ──► Layer activates (stays active)
+               │
+          Tap M1 again ──► Layer deactivates
+```
+
 ### Layer System
 
 ```
