@@ -2,6 +2,11 @@
 # true: Xbox Elite (Steam paddles), false: standard gamepad + base remaps
 emulate_elite = true
 
+[led]
+mode = "static"           # static / off / breathing
+brightness = 80
+color = "#00ff00"         # green
+
 [gyro]
 mode = "off"                # off / mouse / joystick
 
@@ -24,6 +29,7 @@ gyro = { mode = "mouse", sensitivity = 2.0 }
 stick_left = { mode = "scroll" }   # gamepad / mouse / scroll
 stick_right = { mode = "mouse", sensitivity = 1.0 }  # gamepad / mouse
 dpad = { mode = "arrows" }  # gamepad / arrows / scroll
+led = { mode = "breathing", color = "#ff0000" }   # red breathing when aiming
 remap = { RB = "mouse_left", RT = "mouse_right", RM = "mouse_middle", A = "KEY_LEFTMETA" }
 
 # Hold RM for stick mouse + arrows
@@ -32,4 +38,5 @@ trigger = "RM"
 hold_timeout = 150
 stick_right = { mode = "mouse", sensitivity = 1.5 }
 dpad = { mode = "arrows" }
+led = { mode = "static", color = "#0000ff" }       # blue when in mouse mode
 remap = { A = "mouse_left", B = "mouse_right" }

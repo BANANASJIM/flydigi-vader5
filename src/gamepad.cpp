@@ -57,6 +57,16 @@ auto apply_curve(float value, float curve, float deadzone = 0.0F) -> float {
 
 constexpr uint8_t CMD_TEST_MODE = 0x11;
 constexpr uint8_t CMD_RUMBLE = 0x12;
+constexpr uint8_t CMD_LED = 0xa9;
+constexpr uint8_t CMD_LED_SUB = 0x17;
+constexpr uint8_t LED_MODE_STATIC = 0x05;
+constexpr uint8_t LED_MODE_OFF = 0x06;
+constexpr uint8_t LED_MODE_BREATHING = 0x02;
+constexpr uint8_t LED_CYCLE_TIME = 30;
+constexpr size_t LED_MODE_BYTE = 9;
+constexpr size_t LED_CYCLE_BYTE = 10;
+constexpr size_t LED_BRIGHT_BYTE = 11;
+constexpr size_t LED_PARAM_BYTE = 13;
 constexpr uint8_t CHECKSUM_TEST_ON = 0x15;
 constexpr uint8_t CHECKSUM_TEST_OFF = 0x14;
 
@@ -185,7 +195,9 @@ auto Gamepad::open(const Config& cfg) -> Result<Gamepad> {
         input = std::move(*dev);
     }
 
-    return Gamepad(std::move(*hid), std::move(*uinput), std::move(input), cfg);
+    auto gp = Gamepad(std::move(*hid), std::move(*uinput), std::move(input), cfg);
+    gp.send_led(cfg.led);
+    return gp;
 }
 
 auto Gamepad::is_button_pressed(const GamepadState& state, std::string_view name) -> bool {
@@ -634,6 +646,7 @@ auto Gamepad::poll() -> Result<void> {
         suppressed_ext_ = 0;
 
         update_tap_hold(*state, prev_state_);
+        update_led();
         process_gyro(*state);
         process_mouse_stick(*state);
         process_scroll_stick(*state);
@@ -672,6 +685,78 @@ auto Gamepad::send_rumble(uint8_t left, uint8_t right) -> bool {
     pkt.at(4) = left;
     pkt.at(5) = right;
     return hidraw_.write(pkt).has_value();
+}
+
+auto Gamepad::send_led(const LedConfig& led) -> bool {
+    std::array<uint8_t, PKT_SIZE> pkt{};
+
+    // Mode config (byte[4]=00)
+    pkt.at(0) = MAGIC_5A;
+    pkt.at(1) = MAGIC_A5;
+    pkt.at(2) = CMD_LED;
+    pkt.at(3) = CMD_LED_SUB;
+    pkt.at(4) = 0x00;
+    pkt.at(LED_MODE_BYTE) = (led.mode == LedConfig::Breathing) ? 0x01 : 0x00;
+    pkt.at(LED_CYCLE_BYTE) = LED_CYCLE_TIME;
+    pkt.at(LED_BRIGHT_BYTE) = led.brightness;
+    if (led.mode == LedConfig::Off) {
+        pkt.at(LED_PARAM_BYTE) = LED_MODE_OFF;
+    } else if (led.mode == LedConfig::Breathing) {
+        pkt.at(LED_PARAM_BYTE) = LED_MODE_BREATHING;
+    } else {
+        pkt.at(LED_PARAM_BYTE) = LED_MODE_STATIC;
+    }
+
+    std::cerr << "[LED] pkt1: ";
+    for (size_t i = 0; i < 16; ++i) {
+        std::cerr << std::hex << static_cast<int>(pkt[i]) << " ";
+    }
+    std::cerr << std::dec << "\n";
+
+    auto res1 = hidraw_.write(pkt);
+    std::cerr << "[LED] write1: " << (res1 ? "ok" : "fail") << "\n";
+    if (!res1) {
+        return false;
+    }
+
+    // Color layer 1 (byte[4]=01, GRB at bytes 5-7)
+    pkt.fill(0);
+    pkt.at(0) = MAGIC_5A;
+    pkt.at(1) = MAGIC_A5;
+    pkt.at(2) = CMD_LED;
+    pkt.at(3) = CMD_LED_SUB;
+    pkt.at(4) = 0x01;
+    pkt.at(5) = led.g;
+    pkt.at(6) = led.r;
+    pkt.at(7) = led.b;
+
+    std::cerr << "[LED] pkt2: ";
+    for (size_t i = 0; i < 16; ++i) {
+        std::cerr << std::hex << static_cast<int>(pkt[i]) << " ";
+    }
+    std::cerr << std::dec << "\n";
+
+    auto res2 = hidraw_.write(pkt);
+    std::cerr << "[LED] write2: " << (res2 ? "ok" : "fail") << "\n";
+    if (!res2) {
+        return false;
+    }
+
+    return true;
+}
+
+void Gamepad::update_led() {
+    const auto* layer = get_active_layer();
+    if (layer == prev_layer_) {
+        return;
+    }
+    prev_layer_ = layer;
+
+    if (layer != nullptr && layer->led) {
+        send_led(*layer->led);
+    } else {
+        send_led(config_.led);
+    }
 }
 
 Gamepad::~Gamepad() {

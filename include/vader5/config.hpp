@@ -40,6 +40,13 @@ struct DpadConfig {
     Mode mode{Gamepad};
 };
 
+struct LedConfig {
+    enum Mode { Off, Static, Breathing };
+    Mode mode{Static};
+    uint8_t brightness{80};
+    uint8_t r{0}, g{255}, b{0};
+};
+
 struct LayerConfig {
     enum Activation { Hold, Toggle };
     std::string name;
@@ -52,6 +59,7 @@ struct LayerConfig {
     std::optional<StickConfig> stick_left;
     std::optional<StickConfig> stick_right;
     std::optional<DpadConfig> dpad;
+    std::optional<LedConfig> led;
     std::unordered_map<std::string, RemapTarget> remap;
 };
 
@@ -63,6 +71,7 @@ struct Config {
     StickConfig left_stick;
     StickConfig right_stick;
     DpadConfig dpad;
+    LedConfig led;
     std::unordered_map<std::string, LayerConfig> layers;
 
     static auto load(const std::string& path) -> Result<Config>;
