@@ -17,6 +17,8 @@ The driver SHALL suppress remapped buttons from emitting to the virtual gamepad,
 - **AND** no event emits to virtual gamepad
 - **AND** C remains suppressed in all layers
 
+## ADDED Requirements
+
 ### Requirement: Layer Remap Priority
 
 The driver SHALL give layer remaps priority over base remaps, emitting only the layer target when both define the same button.
