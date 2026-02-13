@@ -302,7 +302,8 @@ auto InputDevice::create(const char* name) -> Result<InputDevice> {
     for (int key = KEY_F13; key <= KEY_F24; ++key) {
         (void)ioctl(fd, UI_SET_KEYBIT, key);
     }
-    for (int key : {KEY_RIGHTCTRL, KEY_RIGHTALT, KEY_LEFTMETA, KEY_RIGHTMETA,
+    for (int key : {KEY_F11, KEY_F12,
+                    KEY_RIGHTCTRL, KEY_RIGHTALT, KEY_LEFTMETA, KEY_RIGHTMETA,
                     KEY_HOME, KEY_UP, KEY_PAGEUP, KEY_LEFT, KEY_RIGHT,
                     KEY_END, KEY_DOWN, KEY_PAGEDOWN, KEY_INSERT, KEY_DELETE}) {
         (void)ioctl(fd, UI_SET_KEYBIT, key);
