@@ -79,6 +79,10 @@ class Gamepad {
     uint8_t suppressed_ext_{0};
     uint16_t prev_suppressed_buttons_{0};
     uint8_t prev_suppressed_ext_{0};
+    uint16_t injected_buttons_{0};
+    uint8_t injected_ext_{0};
+    uint16_t prev_injected_buttons_{0};
+    uint8_t prev_injected_ext_{0};
 };
 
 } // namespace vader5

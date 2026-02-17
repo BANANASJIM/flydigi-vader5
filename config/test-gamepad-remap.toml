@@ -1,0 +1,6 @@
+# Test config for gamepad button-to-button remapping
+emulate_elite = false
+
+[remap]
+LM = "L3"
+RM = "R3"

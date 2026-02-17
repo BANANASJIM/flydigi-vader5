@@ -11,9 +11,11 @@ namespace vader5 {
 
 // Target for button remapping
 struct RemapTarget {
-    enum Type { Disabled, Key, MouseButton, MouseMove };
+    enum Type { Disabled, Key, MouseButton, MouseMove, GamepadButton };
     Type type{Key};
     int code{0};
+    uint16_t btn_mask{0};
+    uint8_t ext_mask{0};
 };
 
 struct GyroConfig {

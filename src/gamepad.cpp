@@ -18,28 +18,6 @@ constexpr float SCROLL_SCALE = 0.00005F;
 constexpr float GYRO_MAX = 32768.0F;
 constexpr int AXIS_MAX = 32767;
 
-constexpr auto button_to_masks(std::string_view name) -> std::pair<uint16_t, uint8_t> {
-    if (name == "A") { return {PAD_A, 0}; }
-    if (name == "B") { return {PAD_B, 0}; }
-    if (name == "X") { return {PAD_X, 0}; }
-    if (name == "Y") { return {PAD_Y, 0}; }
-    if (name == "LB") { return {PAD_LB, 0}; }
-    if (name == "RB") { return {PAD_RB, 0}; }
-    if (name == "SELECT") { return {PAD_SELECT, 0}; }
-    if (name == "START") { return {PAD_START, 0}; }
-    if (name == "L3") { return {PAD_L3, 0}; }
-    if (name == "R3") { return {PAD_R3, 0}; }
-    if (name == "C") { return {0, EXT_C}; }
-    if (name == "Z") { return {0, EXT_Z}; }
-    if (name == "M1") { return {0, EXT_M1}; }
-    if (name == "M2") { return {0, EXT_M2}; }
-    if (name == "M3") { return {0, EXT_M3}; }
-    if (name == "M4") { return {0, EXT_M4}; }
-    if (name == "LM") { return {0, EXT_LM}; }
-    if (name == "RM") { return {0, EXT_RM}; }
-    return {0, 0};
-}
-
 auto apply_curve(float value, float curve, float deadzone = 0.0F) -> float {
     if (curve == 1.0F) {
         return value;
@@ -569,11 +547,20 @@ void Gamepad::process_base_remaps(const GamepadState& state, const GamepadState&
             continue;
         }
 
+        const bool curr = is_button_pressed(state, btn);
+
+        if (target.type == RemapTarget::GamepadButton) {
+            if (curr) {
+                injected_buttons_ |= target.btn_mask;
+                injected_ext_ |= target.ext_mask;
+            }
+            continue;
+        }
+
         if (!input_) {
             continue;
         }
 
-        const bool curr = is_button_pressed(state, btn);
         const bool old = is_button_pressed(prev, btn);
         if (curr == old) {
             continue;
@@ -600,11 +587,24 @@ void Gamepad::process_layer_buttons(const GamepadState& state, const GamepadStat
         suppressed_buttons_ |= btn_mask;
         suppressed_ext_ |= ext_mask;
 
-        if (target.type == RemapTarget::Disabled || !input_) {
+        if (target.type == RemapTarget::Disabled) {
             continue;
         }
 
         const bool curr = is_button_pressed(state, btn);
+
+        if (target.type == RemapTarget::GamepadButton) {
+            if (curr) {
+                injected_buttons_ |= target.btn_mask;
+                injected_ext_ |= target.ext_mask;
+            }
+            continue;
+        }
+
+        if (!input_) {
+            continue;
+        }
+
         const bool old = is_button_pressed(prev, btn);
         if (curr == old) {
             continue;
@@ -632,6 +632,8 @@ auto Gamepad::poll() -> Result<void> {
     if (auto state = ext_report::parse({buf.data(), *bytes})) {
         suppressed_buttons_ = 0;
         suppressed_ext_ = 0;
+        injected_buttons_ = 0;
+        injected_ext_ = 0;
 
         update_tap_hold(*state, prev_state_);
         process_gyro(*state);
@@ -642,8 +644,8 @@ auto Gamepad::poll() -> Result<void> {
         process_layer_buttons(*state, prev_state_);
 
         auto emit_state = *state;
-        emit_state.buttons &= ~suppressed_buttons_;
-        emit_state.ext_buttons &= ~suppressed_ext_;
+        emit_state.buttons = (emit_state.buttons & ~suppressed_buttons_) | injected_buttons_;
+        emit_state.ext_buttons = (emit_state.ext_buttons & ~suppressed_ext_) | injected_ext_;
 
         if (get_effective_gyro().mode == GyroConfig::Joystick) {
             emit_state.right_x = static_cast<int16_t>(gyro_stick_x_);
@@ -651,13 +653,15 @@ auto Gamepad::poll() -> Result<void> {
         }
 
         auto emit_prev = prev_state_;
-        emit_prev.buttons &= ~prev_suppressed_buttons_;
-        emit_prev.ext_buttons &= ~prev_suppressed_ext_;
+        emit_prev.buttons = (emit_prev.buttons & ~prev_suppressed_buttons_) | prev_injected_buttons_;
+        emit_prev.ext_buttons = (emit_prev.ext_buttons & ~prev_suppressed_ext_) | prev_injected_ext_;
 
         auto result = uinput_.emit(emit_state, emit_prev);
         prev_state_ = *state;
         prev_suppressed_buttons_ = suppressed_buttons_;
         prev_suppressed_ext_ = suppressed_ext_;
+        prev_injected_buttons_ = injected_buttons_;
+        prev_injected_ext_ = injected_ext_;
         return result;
     }
     return {};

@@ -57,3 +57,12 @@ add_executable(vader5-debug
 )
 target_include_directories(vader5-debug PRIVATE include)
 target_link_libraries(vader5-debug PRIVATE ftxui::screen ftxui::dom ftxui::component)
+
+add_executable(test-remap
+    src/tools/test_remap.cpp
+    src/config.cpp
+    src/keycodes.cpp
+)
+set_target_properties(test-remap PROPERTIES CXX_CLANG_TIDY "")
+target_include_directories(test-remap PRIVATE include)
+target_link_libraries(test-remap PRIVATE tomlplusplus::tomlplusplus)

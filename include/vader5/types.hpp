@@ -84,4 +84,26 @@ enum Dpad : uint8_t {
     DPAD_UP_LEFT = 8,
 };
 
+constexpr auto button_to_masks(std::string_view name) -> std::pair<uint16_t, uint8_t> {
+    if (name == "A") { return {PAD_A, 0}; }
+    if (name == "B") { return {PAD_B, 0}; }
+    if (name == "X") { return {PAD_X, 0}; }
+    if (name == "Y") { return {PAD_Y, 0}; }
+    if (name == "LB") { return {PAD_LB, 0}; }
+    if (name == "RB") { return {PAD_RB, 0}; }
+    if (name == "SELECT") { return {PAD_SELECT, 0}; }
+    if (name == "START") { return {PAD_START, 0}; }
+    if (name == "L3") { return {PAD_L3, 0}; }
+    if (name == "R3") { return {PAD_R3, 0}; }
+    if (name == "C") { return {0, EXT_C}; }
+    if (name == "Z") { return {0, EXT_Z}; }
+    if (name == "M1") { return {0, EXT_M1}; }
+    if (name == "M2") { return {0, EXT_M2}; }
+    if (name == "M3") { return {0, EXT_M3}; }
+    if (name == "M4") { return {0, EXT_M4}; }
+    if (name == "LM") { return {0, EXT_LM}; }
+    if (name == "RM") { return {0, EXT_RM}; }
+    return {0, 0};
+}
+
 } // namespace vader5

@@ -168,6 +168,9 @@ auto parse_remap_target(std::string_view value) -> std::optional<RemapTarget> {
     if (value == "mouse_back") {
         return RemapTarget{RemapTarget::MouseButton, BTN_BACK};
     }
+    if (auto [btn, ext] = button_to_masks(value); btn != 0 || ext != 0) {
+        return RemapTarget{RemapTarget::GamepadButton, 0, btn, ext};
+    }
     if (auto code = keycode_from_name(value)) {
         return RemapTarget{RemapTarget::Key, *code};
     }
