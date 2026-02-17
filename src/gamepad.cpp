@@ -244,6 +244,14 @@ auto Gamepad::get_active_layer() -> const LayerConfig* {
 }
 
 void Gamepad::emit_tap(const RemapTarget& tap) {
+    if (tap.type == RemapTarget::GamepadButton) {
+        auto press = prev_state_;
+        press.buttons |= tap.btn_mask;
+        press.ext_buttons |= tap.ext_mask;
+        [[maybe_unused]] auto r1 = uinput_.emit(press, prev_state_);
+        [[maybe_unused]] auto r2 = uinput_.emit(prev_state_, press);
+        return;
+    }
     if (!input_) {
         return;
     }

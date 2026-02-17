@@ -37,6 +37,10 @@ C = "disabled"
 # Meta/Super key
 Z = "KEY_LEFTMETA"
 
+# Gamepad button-to-button remap
+LM = "L3"
+RM = "R3"
+
 # ═══════════════════════════════════════════════════════════════
 # Layer: aim - gyro mouse + mouse buttons
 # Trigger: LM (hold), Tap: KEY_F15
@@ -79,3 +83,12 @@ tap = "mouse_middle"
 hold_timeout = 180
 
 remap = { A = "KEY_LEFT", B = "KEY_RIGHT", X = "KEY_UP", Y = "KEY_DOWN", RB = "KEY_PAGEUP", LB = "KEY_PAGEDOWN" }
+
+# ═══════════════════════════════════════════════════════════════
+# Layer: gamepad - gamepad button remaps inside a layer
+# Trigger: M2 (hold)
+# ═══════════════════════════════════════════════════════════════
+[layer.gamepad]
+trigger = "M2"
+hold_timeout = 200
+remap = { A = "B", B = "A", M3 = "L3", M4 = "R3" }

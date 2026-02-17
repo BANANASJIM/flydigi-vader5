@@ -127,7 +127,39 @@ void test_config_load() {
     CHECK(cfg->button_remaps.at("RM").type == RemapTarget::GamepadButton);
     CHECK(cfg->button_remaps.at("RM").btn_mask == PAD_R3);
 
-    std::cout << "  config load with gamepad remap: OK\n";
+    std::cout << "  config load (simple): OK\n";
+}
+
+void test_config_load_full() {
+    auto cfg = Config::load("config/test-remap.toml");
+    CHECK(cfg.has_value());
+
+    // Base remap: LM -> L3, RM -> R3
+    CHECK(cfg->button_remaps.at("LM").type == RemapTarget::GamepadButton);
+    CHECK(cfg->button_remaps.at("LM").btn_mask == PAD_L3);
+    CHECK(cfg->button_remaps.at("RM").btn_mask == PAD_R3);
+
+    // Keyboard remaps still work
+    CHECK(cfg->button_remaps.at("M1").type == RemapTarget::Key);
+    CHECK(cfg->button_remaps.at("A").type == RemapTarget::Key);
+
+    // Mouse remaps still work
+    CHECK(cfg->button_remaps.at("M3").type == RemapTarget::MouseButton);
+
+    // Disabled still works
+    CHECK(cfg->button_remaps.at("C").type == RemapTarget::Disabled);
+
+    // Layer with gamepad button remaps
+    CHECK(cfg->layers.contains("gamepad"));
+    const auto& gl = cfg->layers.at("gamepad");
+    CHECK(gl.remap.at("A").type == RemapTarget::GamepadButton);
+    CHECK(gl.remap.at("A").btn_mask == PAD_B);
+    CHECK(gl.remap.at("B").btn_mask == PAD_A);
+    CHECK(gl.remap.at("M3").ext_mask == 0);
+    CHECK(gl.remap.at("M3").btn_mask == PAD_L3);
+    CHECK(gl.remap.at("M4").btn_mask == PAD_R3);
+
+    std::cout << "  config load (full): OK\n";
 }
 
 int main() {
@@ -138,5 +170,6 @@ int main() {
     test_injection_button_swap();
     test_no_injection_when_released();
     test_config_load();
+    test_config_load_full();
     std::cout << "All tests passed!\n";
 }
