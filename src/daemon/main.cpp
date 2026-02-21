@@ -37,9 +37,8 @@ auto main(int argc, char* argv[]) -> int {
         if ((std::strcmp(args[i], "-c") == 0 || std::strcmp(args[i], "--config") == 0) &&
             i + 1 < args.size()) {
             config_path = args[++i];
-        }
-        if ((std::strcmp(args[i], "-d") == 0 || std::strcmp(args[i], "--device") == 0) &&
-            i + 1 < args.size()) {
+        } else if ((std::strcmp(args[i], "-d") == 0 || std::strcmp(args[i], "--device") == 0) &&
+                   i + 1 < args.size()) {
             device_name = args[++i];
         }
     }
