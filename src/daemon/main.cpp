@@ -70,10 +70,12 @@ auto main(int argc, char* argv[]) -> int {
 
         while (g_running.load(std::memory_order_relaxed)) {
             const int ret = poll(pfds.data(), pfds.size(), POLL_TIMEOUT_MS);
-            if (ret < 0 && errno != EINTR) {
-	        const int err = errno;
-                std::cerr << std::format("vader5d: poll error: {}\n", std::strerror(err));
-                break;
+            if (ret < 0) {
+                const int err = errno;
+                if (err != EINTR) {
+                    std::cerr << std::format("vader5d: poll error: {}\n", std::strerror(err));
+                    break;
+                }
             }
 
             if (ret > 0 && (pfds[0].revents & POLLIN) != 0) {

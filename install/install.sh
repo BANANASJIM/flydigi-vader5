@@ -5,7 +5,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_DIR/build"
 CONFIG_DIR="$HOME/.config/vader5"
-UDEV_RULES="/etc/udev/rules.d/"
 
 info() { echo -e "\033[1;34m==>\033[0m $1"; }
 success() { echo -e "\033[1;32m==>\033[0m $1"; }
