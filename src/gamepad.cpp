@@ -175,10 +175,12 @@ auto block_redundant_input(const Hidraw& hidraw) -> Result<UniqueFd> {
     }
     // We want to find the now-redundant input device that identifies this as a generic controller;
     // we do this by finding the input event node that's on the same usb device as our hidraw node.
-    // This strips the suffix from usb-0000:00:14.0-4/input1
-    if (auto pos = hidraw_path->rfind("/input"); pos != std::string::npos) {
-        hidraw_path = hidraw_path->substr(0, pos);
+    // path format is: usb-0000:00:14.0-4/input1
+    // Our hidraw interface is 1, the generic one is 0, so look that one up.
+    if (!hidraw_path->ends_with("/input1")) {
+        return std::unexpected(std::make_error_code(std::errc::invalid_argument));
     }
+    hidraw_path->back() = '0';
 
     auto input_path = find_input_device(*hidraw_path);
     if (!input_path) {
