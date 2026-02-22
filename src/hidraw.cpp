@@ -3,10 +3,13 @@
 
 #include <fcntl.h>
 #include <linux/hidraw.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <climits>
 #include <filesystem>
 #include <fstream>
+#include <utility>
 
 namespace vader5 {
 namespace fs = std::filesystem;
@@ -91,6 +94,23 @@ auto Hidraw::operator=(Hidraw&& other) noexcept -> Hidraw& {
         other.fd_ = -1;
     }
     return *this;
+}
+
+auto Hidraw::phys() const -> Result<std::string> {
+    std::string path;
+    for (size_t buf_size = 256; buf_size <= INT_MAX; buf_size *= 2) {
+        path.resize(buf_size, '\0');
+        int len = ioctl(fd_, HIDIOCGRAWPHYS(buf_size), path.data());
+        if (len < 0) {
+            int err = errno;
+            return std::unexpected(std::error_code(err, std::system_category()));
+        }
+        if (std::cmp_less(len, buf_size)) {
+            path.resize(len - 1);
+            return path;
+        }
+    }
+    return std::unexpected(std::make_error_code(std::errc::filename_too_long));
 }
 
 auto Hidraw::read(std::span<uint8_t> buf) const -> Result<size_t> {
