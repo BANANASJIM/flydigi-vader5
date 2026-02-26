@@ -52,7 +52,7 @@ install_bin() {
 install_systemd() {
     info "Installing systemd service (requires sudo)..."
     sudo cp -t /etc/systemd/system/ "$SCRIPT_DIR/vader5d@.service"
-    sudo cp -t /etc/udev/rules.d/ "$SCRIPT_DIR/99-vader5-systemd.rules" 
+    sudo cp -t /etc/udev/rules.d/ "$SCRIPT_DIR/99-vader5-systemd.rules"
     sudo systemctl daemon-reload
     sudo udevadm control --reload-rules
     trigger_udev

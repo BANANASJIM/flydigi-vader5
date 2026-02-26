@@ -13,7 +13,8 @@ namespace vader5 {
 namespace {
 
 inline void write_event(int fd, const input_event& ev) {
-    if (::write(fd, &ev, sizeof(ev)) < 0) {}
+    if (::write(fd, &ev, sizeof(ev)) < 0) {
+    }
 }
 constexpr int AXIS_MIN = -32768;
 constexpr int AXIS_MAX = 32767;
@@ -34,8 +35,8 @@ constexpr std::array<int, 8> DEFAULT_EXT_CODES = {
 };
 } // namespace
 
-auto Uinput::create(std::span<const std::optional<int>> ext_mappings, const char* name)
-    -> Result<Uinput> {
+auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
+                    const char* name) -> Result<Uinput> {
     const int file_descriptor = ::open("/dev/uinput", O_RDWR | O_NONBLOCK);
     if (file_descriptor < 0) {
         return std::unexpected(std::error_code(errno, std::system_category()));
@@ -346,7 +347,8 @@ auto InputDevice::create(const char* name) -> Result<InputDevice> {
     (void)ioctl(fd, UI_SET_RELBIT, REL_Y);
     (void)ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
     (void)ioctl(fd, UI_SET_RELBIT, REL_HWHEEL);
-    for (const int btn : {BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, BTN_SIDE, BTN_EXTRA, BTN_FORWARD, BTN_BACK}) {
+    for (const int btn :
+         {BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, BTN_SIDE, BTN_EXTRA, BTN_FORWARD, BTN_BACK}) {
         (void)ioctl(fd, UI_SET_KEYBIT, btn);
     }
 
@@ -357,10 +359,9 @@ auto InputDevice::create(const char* name) -> Result<InputDevice> {
     for (int key = KEY_F13; key <= KEY_F24; ++key) {
         (void)ioctl(fd, UI_SET_KEYBIT, key);
     }
-    for (int key : {KEY_F11, KEY_F12,
-                    KEY_RIGHTCTRL, KEY_RIGHTALT, KEY_LEFTMETA, KEY_RIGHTMETA,
-                    KEY_HOME, KEY_UP, KEY_PAGEUP, KEY_LEFT, KEY_RIGHT,
-                    KEY_END, KEY_DOWN, KEY_PAGEDOWN, KEY_INSERT, KEY_DELETE}) {
+    for (int key : {KEY_F11, KEY_F12, KEY_RIGHTCTRL, KEY_RIGHTALT, KEY_LEFTMETA, KEY_RIGHTMETA,
+                    KEY_HOME, KEY_UP, KEY_PAGEUP, KEY_LEFT, KEY_RIGHT, KEY_END, KEY_DOWN,
+                    KEY_PAGEDOWN, KEY_INSERT, KEY_DELETE}) {
         (void)ioctl(fd, UI_SET_KEYBIT, key);
     }
 

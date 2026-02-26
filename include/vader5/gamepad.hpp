@@ -4,8 +4,11 @@
 #include "hidraw.hpp"
 #include "uinput.hpp"
 
+#include <unistd.h>
+
 #include <chrono>
 #include <unordered_set>
+#include <utility>
 
 namespace vader5 {
 
@@ -15,13 +18,37 @@ struct TapHoldState {
     bool layer_activated{false};
 };
 
+class UniqueFd {
+    int fd_;
+
+  public:
+    explicit constexpr UniqueFd(int fd) noexcept : fd_{fd} {}
+
+    ~UniqueFd() {
+        if (fd_ >= 0) {
+            ::close(fd_);
+        }
+    }
+
+    UniqueFd() = delete;
+    UniqueFd(const UniqueFd&) = delete;
+    UniqueFd& operator=(const UniqueFd&) = delete;
+    UniqueFd& operator=(UniqueFd&&) = delete;
+
+    constexpr UniqueFd(UniqueFd&& other) noexcept : fd_{std::exchange(other.fd_, -1)} {}
+
+    [[nodiscard]] constexpr int get() const noexcept {
+        return fd_;
+    }
+};
+
 class Gamepad {
   public:
     static auto open(const Config& cfg, const std::string& device_name) -> Result<Gamepad>;
     ~Gamepad();
 
     Gamepad(Gamepad&&) = default;
-    Gamepad& operator=(Gamepad&&) = default;
+    Gamepad& operator=(Gamepad&&) = delete;
     Gamepad(const Gamepad&) = delete;
     Gamepad& operator=(const Gamepad&) = delete;
 
@@ -36,9 +63,10 @@ class Gamepad {
     }
 
   private:
-    Gamepad(Hidraw&& hid, Uinput&& uinput, std::optional<InputDevice>&& input, Config cfg)
+    Gamepad(Hidraw&& hid, Uinput&& uinput, std::optional<InputDevice>&& input, UniqueFd&& redundant,
+            Config cfg)
         : hidraw_(std::move(hid)), uinput_(std::move(uinput)), input_(std::move(input)),
-          config_(std::move(cfg)) {}
+          redundant_(std::move(redundant)), config_(std::move(cfg)) {}
 
     void process_gyro(const GamepadState& state);
     void process_mouse_stick(const GamepadState& state);
@@ -59,6 +87,7 @@ class Gamepad {
     Hidraw hidraw_;
     Uinput uinput_;
     std::optional<InputDevice> input_;
+    UniqueFd redundant_;
     Config config_;
     GamepadState prev_state_{};
     std::unordered_map<std::string, TapHoldState> tap_hold_states_;

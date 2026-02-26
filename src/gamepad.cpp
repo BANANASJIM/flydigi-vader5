@@ -2,15 +2,25 @@
 #include "vader5/debug.hpp"
 #include "vader5/protocol.hpp"
 
+#include <fcntl.h>
 #include <linux/input-event-codes.h>
+#include <linux/input.h>
+#include <unistd.h>
 
 #include <array>
+#include <cerrno>
 #include <cmath>
+#include <cstring>
+#include <filesystem>
+#include <format>
+#include <fstream>
 #include <thread>
 
 namespace vader5 {
 
 namespace {
+namespace fs = std::filesystem;
+
 constexpr int CONFIG_INTERFACE = 1;
 constexpr float GYRO_SCALE = 0.001F;
 constexpr float STICK_SCALE = 0.0001F;
@@ -128,12 +138,70 @@ auto needs_mouse(const Config& cfg) -> bool {
                 return true;
             }
         }
-        if (layer.tap && (layer.tap->type == RemapTarget::Key ||
-                          layer.tap->type == RemapTarget::MouseButton)) {
+        if (layer.tap &&
+            (layer.tap->type == RemapTarget::Key || layer.tap->type == RemapTarget::MouseButton)) {
             return true;
         }
     }
     return false;
+}
+
+auto find_input_device(const std::string& match_phys) -> std::optional<std::string> {
+    std::string input_path;
+    for (const auto& entry : fs::directory_iterator("/sys/class/input")) {
+        if (!entry.path().filename().string().starts_with("event")) {
+            continue;
+        }
+        auto phys_path = entry.path() / "device" / "phys";
+        std::ifstream phys(phys_path);
+        if (!phys) {
+            continue;
+        }
+        if (!std::getline(phys, input_path)) {
+            continue;
+        }
+        if (input_path == match_phys) {
+            return "/dev/input/" + entry.path().filename().string();
+        }
+        input_path.clear();
+    }
+    return std::nullopt;
+}
+
+auto block_redundant_input(const Hidraw& hidraw) -> Result<UniqueFd> {
+    auto hidraw_path = hidraw.phys();
+    if (!hidraw_path) {
+        return std::unexpected(hidraw_path.error());
+    }
+    // We want to find the now-redundant input device that identifies this as a generic controller;
+    // we do this by finding the input event node that's on the same usb device as our hidraw node.
+    // path format is: usb-0000:00:14.0-4/input1
+    // Our hidraw interface is 1, the generic one is 0, so look that one up.
+    if (!hidraw_path->ends_with("/input1")) {
+        return std::unexpected(std::make_error_code(std::errc::invalid_argument));
+    }
+    hidraw_path->back() = '0';
+
+    auto input_path = find_input_device(*hidraw_path);
+    if (!input_path) {
+        return UniqueFd(-1);
+    }
+
+    const int fd = ::open(input_path->c_str(), O_RDONLY | O_NONBLOCK);
+    if (fd < 0) {
+        const int err = errno;
+        return std::unexpected(std::error_code(err, std::system_category()));
+    }
+    UniqueFd result(fd);
+    // Exclusively grab this input device. Until our process dies or this file descriptor is closed,
+    // all other attempts to read from this input will not receive any events, which prevents
+    // double-events for games that listen to multiple controllers.
+    if (ioctl(fd, EVIOCGRAB, 1) < 0) {
+        const int err = errno;
+        return std::unexpected(std::error_code(err, std::system_category()));
+    }
+
+    return result;
 }
 } // namespace
 
@@ -163,7 +231,14 @@ auto Gamepad::open(const Config& cfg, const std::string& device_name) -> Result<
         input = std::move(*dev);
     }
 
-    return Gamepad(std::move(*hid), std::move(*uinput), std::move(input), cfg);
+    auto redundant = block_redundant_input(*hid);
+    if (!redundant) {
+        send_test_mode(*hid, false);
+        return std::unexpected(redundant.error());
+    }
+
+    return Gamepad(std::move(*hid), std::move(*uinput), std::move(input), std::move(*redundant),
+                   cfg);
 }
 
 auto Gamepad::is_button_pressed(const GamepadState& state, std::string_view name) -> bool {
@@ -318,7 +393,8 @@ void Gamepad::update_tap_hold(const GamepadState& state, const GamepadState& pre
             continue;
         }
 
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.press_time);
+        auto elapsed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.press_time);
         if (!it->second.layer_activated && elapsed.count() >= layer.hold_timeout) {
             it->second.layer_activated = true;
             DBG("Layer '" << name << "' activated");
@@ -661,8 +737,10 @@ auto Gamepad::poll() -> Result<void> {
         }
 
         auto emit_prev = prev_state_;
-        emit_prev.buttons = (emit_prev.buttons & ~prev_suppressed_buttons_) | prev_injected_buttons_;
-        emit_prev.ext_buttons = (emit_prev.ext_buttons & ~prev_suppressed_ext_) | prev_injected_ext_;
+        emit_prev.buttons =
+            (emit_prev.buttons & ~prev_suppressed_buttons_) | prev_injected_buttons_;
+        emit_prev.ext_buttons =
+            (emit_prev.ext_buttons & ~prev_suppressed_ext_) | prev_injected_ext_;
 
         auto result = uinput_.emit(emit_state, emit_prev);
         prev_state_ = *state;
