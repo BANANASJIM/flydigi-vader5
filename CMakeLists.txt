@@ -66,3 +66,12 @@ add_executable(test-remap
 set_target_properties(test-remap PROPERTIES CXX_CLANG_TIDY "")
 target_include_directories(test-remap PRIVATE include)
 target_link_libraries(test-remap PRIVATE tomlplusplus::tomlplusplus)
+
+add_executable(test-uinput-elite
+    src/tools/test_uinput_elite.cpp
+    src/config.cpp
+    src/keycodes.cpp
+)
+set_target_properties(test-uinput-elite PROPERTIES CXX_CLANG_TIDY "")
+target_include_directories(test-uinput-elite PRIVATE include)
+target_link_libraries(test-uinput-elite PRIVATE tomlplusplus::tomlplusplus)

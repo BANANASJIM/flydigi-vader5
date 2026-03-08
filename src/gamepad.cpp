@@ -216,7 +216,7 @@ auto Gamepad::open(const Config& cfg, const std::string& device_name) -> Result<
         return std::unexpected(std::make_error_code(std::errc::protocol_error));
     }
 
-    auto uinput = Uinput::create(cfg.ext_mappings);
+    auto uinput = Uinput::create(cfg.ext_mappings, cfg.emulate_elite);
     if (!uinput) {
         send_test_mode(*hid, false);
         return std::unexpected(uinput.error());
