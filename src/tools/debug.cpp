@@ -1,3 +1,4 @@
+#include "vader5/debug_options.hpp"
 #include "vader5/hidraw.hpp"
 #include "vader5/types.hpp"
 
@@ -40,8 +41,10 @@ using ftxui::WIDTH;
 
 constexpr size_t READ_BUFFER_SIZE = 32;
 constexpr int READ_TIMEOUT_MS = 16;
-constexpr uint8_t IFACE_INPUT = 0;
-constexpr uint8_t IFACE_CONFIG = 1;
+constexpr size_t REPORT_24G_SIZE = 20;
+constexpr uint8_t SUBTYPE_24G = 0x14;
+constexpr int DETECT_ATTEMPTS = 50;
+constexpr int DETECT_INTERVAL_MS = 5;
 constexpr int TRIGGER_BAR_WIDTH = 15;
 
 constexpr uint8_t MAGIC_5A = 0x5a;
@@ -510,37 +513,69 @@ void config_thread(vader5::Hidraw& hidraw_cfg) {
     }
 }
 
-auto open_hidraw_input() -> std::optional<vader5::Hidraw> {
-    auto hidraw = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_INPUT);
+auto find_input_interface() -> std::optional<int> {
+    for (int iface : {0, 2, 3}) {
+        auto hid = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, iface);
+        if (!hid) {
+            continue;
+        }
+        std::array<uint8_t, READ_BUFFER_SIZE> buf{};
+        for (int attempt = 0; attempt < DETECT_ATTEMPTS; ++attempt) {
+            auto bytes = hid->read(buf);
+            if (bytes && *bytes == REPORT_24G_SIZE && buf[1] == SUBTYPE_24G) {
+                return iface;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(DETECT_INTERVAL_MS));
+        }
+    }
+    return std::nullopt;
+}
+
+auto open_hidraw_input(int iface) -> std::optional<vader5::Hidraw> {
+    auto hidraw = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, iface);
     if (!hidraw) {
-        std::cerr << "Error: Failed to open hidraw (Interface 0)\n";
+        std::cerr << "Error: Failed to open hidraw (Interface " << iface << ")\n";
         return std::nullopt;
     }
-    std::cerr << "Hidraw opened (Interface 0)\n";
-    add_log("IF0: hidraw OK");
+    std::cerr << "Hidraw opened (Interface " << iface << ")\n";
+    add_log("IF" + std::to_string(iface) + ": hidraw OK");
     return std::move(*hidraw);
 }
 
-auto open_hidraw_config() -> std::optional<vader5::Hidraw> {
-    auto hidraw_cfg = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, IFACE_CONFIG);
+auto open_hidraw_config(int iface) -> std::optional<vader5::Hidraw> {
+    auto hidraw_cfg = vader5::Hidraw::open(vader5::VENDOR_ID, vader5::PRODUCT_ID, iface);
     if (!hidraw_cfg) {
-        std::cerr << "Warning: Failed to open hidraw (Interface 1)\n";
-        add_log("IF1: hidraw FAILED");
+        std::cerr << "Warning: Failed to open hidraw (Interface " << iface << ")\n";
+        add_log("IF" + std::to_string(iface) + ": hidraw FAILED");
         return std::nullopt;
     }
-    std::cerr << "Hidraw opened (Interface 1)\n";
-    add_log("IF1: hidraw OK");
+    std::cerr << "Hidraw opened (Interface " << iface << ")\n";
+    add_log("IF" + std::to_string(iface) + ": hidraw OK");
     return std::move(*hidraw_cfg);
 }
 } // namespace
 
-auto main() -> int {
-    auto hidraw_input = open_hidraw_input();
+auto main(int argc, char* argv[]) -> int {
+    auto opts = vader5::DebugOptions::parse(argc, argv);
+
+    int input_iface = opts.input_iface;
+    if (input_iface < 0) {
+        std::cerr << "Auto-detecting input interface...\n";
+        auto detected = find_input_interface();
+        if (!detected) {
+            std::cerr << "Error: no valid input interface found. Use --input N to specify.\n";
+            return EXIT_FAILURE;
+        }
+        input_iface = *detected;
+        std::cerr << "Using input interface: " << input_iface << "\n";
+    }
+
+    auto hidraw_input = open_hidraw_input(input_iface);
     if (!hidraw_input) {
         return EXIT_FAILURE;
     }
 
-    auto hidraw_cfg = open_hidraw_config();
+    auto hidraw_cfg = open_hidraw_config(opts.config_iface);
 
     std::optional<std::thread> cfg_handler;
     if (hidraw_cfg) {
