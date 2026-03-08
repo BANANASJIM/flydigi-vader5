@@ -1,0 +1,4 @@
+emulate_elite = true
+
+[gyro]
+mode = "off"

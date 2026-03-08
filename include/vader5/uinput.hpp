@@ -20,6 +20,7 @@ struct RumbleEffect {
 class Uinput {
   public:
     static auto create(std::span<const std::optional<int>> ext_mappings,
+                       bool emulate_elite = true,
                        const char* name = "Vader 5 Pro Virtual Gamepad") -> Result<Uinput>;
     ~Uinput();
 

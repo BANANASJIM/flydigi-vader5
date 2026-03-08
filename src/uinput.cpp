@@ -61,7 +61,7 @@ inline void InputDevice::buffer_event(const input_event& ev) {
 }
 
 auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
-                    const char* name) -> Result<Uinput> {
+                    bool emulate_elite, const char* name) -> Result<Uinput> {
     const int file_descriptor = ::open("/dev/uinput", O_RDWR | O_NONBLOCK);
     if (file_descriptor < 0) {
         int err = errno;
@@ -132,8 +132,8 @@ auto Uinput::create(std::span<const std::optional<int>> ext_mappings,
     std::strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
     setup.name[UINPUT_MAX_NAME_SIZE - 1] = '\0';
     setup.id.bustype = BUS_USB;
-    setup.id.vendor = ELITE_VENDOR_ID;
-    setup.id.product = ELITE_PRODUCT_ID;
+    setup.id.vendor = emulate_elite ? ELITE_VENDOR_ID : VENDOR_ID;
+    setup.id.product = emulate_elite ? ELITE_PRODUCT_ID : PRODUCT_ID;
     setup.id.version = 1;
     setup.ff_effects_max = 16;
 
