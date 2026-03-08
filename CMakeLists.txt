@@ -58,6 +58,12 @@ add_executable(vader5-debug
 target_include_directories(vader5-debug PRIVATE include)
 target_link_libraries(vader5-debug PRIVATE ftxui::screen ftxui::dom ftxui::component)
 
+add_executable(test-debug-iface
+    src/tools/test_debug_iface.cpp
+)
+set_target_properties(test-debug-iface PROPERTIES CXX_CLANG_TIDY "")
+target_include_directories(test-debug-iface PRIVATE include)
+
 add_executable(test-remap
     src/tools/test_remap.cpp
     src/config.cpp
