@@ -10,7 +10,16 @@ info() { echo -e "\033[1;34m==>\033[0m $1"; }
 success() { echo -e "\033[1;32m==>\033[0m $1"; }
 error() { echo -e "\033[1;31m==>\033[0m $1" >&2; }
 
+check_deps() {
+    if ! command -v cmake &> /dev/null; then
+        error "Missing required dependency: cmake"
+        echo "Install with: sudo apt install cmake"
+        exit 1
+    fi
+}
+
 build() {
+    check_deps
     info "Building..."
     cmake -B "$BUILD_DIR" -S "$PROJECT_DIR" -DCMAKE_BUILD_TYPE=Release
     cmake --build "$BUILD_DIR" -j"$(nproc)"
