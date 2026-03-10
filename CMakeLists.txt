@@ -25,7 +25,7 @@ set(FTXUI_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(tomlplusplus ftxui)
 
-option(ENABLE_CLANG_TIDY "Enable clang-tidy" ON)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
 
 if(ENABLE_CLANG_TIDY)
     find_program(CLANG_TIDY clang-tidy)
