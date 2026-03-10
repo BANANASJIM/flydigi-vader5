@@ -127,6 +127,9 @@ auto needs_mouse(const Config& cfg) -> bool {
         if (layer.stick_right && layer.stick_right->mode == StickConfig::Mouse) {
             return true;
         }
+        if (layer.stick_left && layer.stick_left->mode == StickConfig::Mouse) {
+            return true;
+        }
         if (layer.stick_left && layer.stick_left->mode == StickConfig::Scroll) {
             return true;
         }
@@ -508,26 +511,66 @@ void Gamepad::process_mouse_stick(const GamepadState& state) {
         return;
     }
 
-    const auto& cfg = get_effective_stick_right();
-    if (cfg.mode != StickConfig::Mouse) {
+    const auto& right_cfg = get_effective_stick_right();
+    const bool right_mouse = right_cfg.mode == StickConfig::Mouse;
+
+    const auto& left_cfg = get_effective_stick_left();
+    const bool left_mouse = left_cfg.mode == StickConfig::Mouse;
+
+    if (!right_mouse && !left_mouse) {
         return;
     }
 
-    int rx = state.right_x;
-    int ry = state.right_y;
-    if (std::abs(rx) < cfg.deadzone) {
-        rx = 0;
-    }
-    if (std::abs(ry) < cfg.deadzone) {
-        ry = 0;
+    const bool in_layer = get_active_layer() != nullptr;
+
+    if (right_mouse && right_cfg.suppress_gamepad && in_layer) {
+        suppress_right_stick_ = true;
     }
 
-    const int dx = static_cast<int>(static_cast<float>(rx) * STICK_SCALE * cfg.sensitivity);
-    const int dy = static_cast<int>(static_cast<float>(ry) * STICK_SCALE * cfg.sensitivity);
+    if (left_mouse && left_cfg.suppress_gamepad && in_layer) {
+        suppress_left_stick_ = true;
+    }
 
-    if (dx != 0 || dy != 0) {
-        input_->move_mouse(dx, dy);
-        [[maybe_unused]] auto r1 = input_->sync();
+    if (right_mouse) {
+        int rx = state.right_x;
+        int ry = state.right_y;
+        if (std::abs(rx) < right_cfg.deadzone) {
+            rx = 0;
+        }
+        if (std::abs(ry) < right_cfg.deadzone) {
+            ry = 0;
+        }
+
+        const int dx =
+            static_cast<int>(static_cast<float>(rx) * STICK_SCALE * right_cfg.sensitivity);
+        const int dy =
+            static_cast<int>(static_cast<float>(ry) * STICK_SCALE * right_cfg.sensitivity);
+
+        if (dx != 0 || dy != 0) {
+            input_->move_mouse(dx, dy);
+            [[maybe_unused]] auto r1 = input_->sync();
+        }
+    }
+
+    if (left_mouse) {
+        int lx = state.left_x;
+        int ly = state.left_y;
+        if (std::abs(lx) < left_cfg.deadzone) {
+            lx = 0;
+        }
+        if (std::abs(ly) < left_cfg.deadzone) {
+            ly = 0;
+        }
+
+        const int dx =
+            static_cast<int>(static_cast<float>(lx) * STICK_SCALE * left_cfg.sensitivity);
+        const int dy =
+            static_cast<int>(static_cast<float>(ly) * STICK_SCALE * left_cfg.sensitivity);
+
+        if (dx != 0 || dy != 0) {
+            input_->move_mouse(dx, dy);
+            [[maybe_unused]] auto r1 = input_->sync();
+        }
     }
 }
 
@@ -536,23 +579,53 @@ void Gamepad::process_scroll_stick(const GamepadState& state) {
         return;
     }
 
-    const auto& cfg = get_effective_stick_left();
-    if (cfg.mode != StickConfig::Scroll) {
+    const auto& left_cfg = get_effective_stick_left();
+    const auto& right_cfg = get_effective_stick_right();
+    const bool left_scroll = left_cfg.mode == StickConfig::Scroll;
+    const bool right_scroll = right_cfg.mode == StickConfig::Scroll;
+
+    if (!left_scroll && !right_scroll) {
         scroll_accum_v_ = scroll_accum_h_ = 0.0F;
         return;
     }
 
-    int lx = state.left_x;
-    int ly = state.left_y;
-    if (std::abs(lx) < cfg.deadzone) {
-        lx = 0;
-    }
-    if (std::abs(ly) < cfg.deadzone) {
-        ly = 0;
+    const bool in_layer = get_active_layer() != nullptr;
+
+    if (left_scroll && left_cfg.suppress_gamepad && in_layer) {
+        suppress_left_stick_ = true;
     }
 
-    scroll_accum_v_ += static_cast<float>(-ly) * SCROLL_SCALE * cfg.sensitivity;
-    scroll_accum_h_ += static_cast<float>(lx) * SCROLL_SCALE * cfg.sensitivity;
+    if (right_scroll && right_cfg.suppress_gamepad && in_layer) {
+        suppress_right_stick_ = true;
+    }
+
+    if (left_scroll) {
+        int lx = state.left_x;
+        int ly = state.left_y;
+        if (std::abs(lx) < left_cfg.deadzone) {
+            lx = 0;
+        }
+        if (std::abs(ly) < left_cfg.deadzone) {
+            ly = 0;
+        }
+
+        scroll_accum_v_ += static_cast<float>(-ly) * SCROLL_SCALE * left_cfg.sensitivity;
+        scroll_accum_h_ += static_cast<float>(lx) * SCROLL_SCALE * left_cfg.sensitivity;
+    }
+
+    if (right_scroll) {
+        int rx = state.right_x;
+        int ry = state.right_y;
+        if (std::abs(rx) < right_cfg.deadzone) {
+            rx = 0;
+        }
+        if (std::abs(ry) < right_cfg.deadzone) {
+            ry = 0;
+        }
+
+        scroll_accum_v_ += static_cast<float>(-ry) * SCROLL_SCALE * right_cfg.sensitivity;
+        scroll_accum_h_ += static_cast<float>(rx) * SCROLL_SCALE * right_cfg.sensitivity;
+    }
 
     const int scroll_v = static_cast<int>(scroll_accum_v_);
     const int scroll_h = static_cast<int>(scroll_accum_h_);
@@ -572,6 +645,11 @@ void Gamepad::process_layer_dpad(const GamepadState& state) {
 
     const auto& cfg = get_effective_dpad();
     const bool active = cfg.mode == DpadConfig::Arrows;
+
+    const bool in_layer = get_active_layer() != nullptr;
+    if (active && cfg.suppress_gamepad && in_layer) {
+        suppress_dpad_ = true;
+    }
 
     auto is_up = [](uint8_t dp) {
         return dp == DPAD_UP || dp == DPAD_UP_LEFT || dp == DPAD_UP_RIGHT;
@@ -721,6 +799,9 @@ auto Gamepad::poll() -> Result<void> {
         suppressed_ext_ = 0;
         injected_buttons_ = 0;
         injected_ext_ = 0;
+        suppress_left_stick_ = false;
+        suppress_right_stick_ = false;
+        suppress_dpad_ = false;
 
         update_tap_hold(*state, prev_state_);
         process_gyro(*state);
@@ -734,6 +815,18 @@ auto Gamepad::poll() -> Result<void> {
         emit_state.buttons = (emit_state.buttons & ~suppressed_buttons_) | injected_buttons_;
         emit_state.ext_buttons = (emit_state.ext_buttons & ~suppressed_ext_) | injected_ext_;
 
+        if (suppress_left_stick_) {
+            emit_state.left_x = 0;
+            emit_state.left_y = 0;
+        }
+        if (suppress_right_stick_) {
+            emit_state.right_x = 0;
+            emit_state.right_y = 0;
+        }
+        if (suppress_dpad_) {
+            emit_state.dpad = DPAD_NONE;
+        }
+
         if (get_effective_gyro().mode == GyroConfig::Joystick) {
             emit_state.right_x = static_cast<int16_t>(gyro_stick_x_);
             emit_state.right_y = static_cast<int16_t>(gyro_stick_y_);
@@ -744,6 +837,17 @@ auto Gamepad::poll() -> Result<void> {
             (emit_prev.buttons & ~prev_suppressed_buttons_) | prev_injected_buttons_;
         emit_prev.ext_buttons =
             (emit_prev.ext_buttons & ~prev_suppressed_ext_) | prev_injected_ext_;
+        if (prev_suppress_left_stick_) {
+            emit_prev.left_x = 0;
+            emit_prev.left_y = 0;
+        }
+        if (prev_suppress_right_stick_) {
+            emit_prev.right_x = 0;
+            emit_prev.right_y = 0;
+        }
+        if (prev_suppress_dpad_) {
+            emit_prev.dpad = DPAD_NONE;
+        }
 
         auto result = uinput_.emit(emit_state, emit_prev);
         prev_state_ = *state;
@@ -751,6 +855,9 @@ auto Gamepad::poll() -> Result<void> {
         prev_suppressed_ext_ = suppressed_ext_;
         prev_injected_buttons_ = injected_buttons_;
         prev_injected_ext_ = injected_ext_;
+        prev_suppress_left_stick_ = suppress_left_stick_;
+        prev_suppress_right_stick_ = suppress_right_stick_;
+        prev_suppress_dpad_ = suppress_dpad_;
         return result;
     }
     return {};

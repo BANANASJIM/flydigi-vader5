@@ -35,11 +35,13 @@ struct StickConfig {
     Mode mode{Gamepad};
     int deadzone{128};
     float sensitivity{1.0F};
+    bool suppress_gamepad{false};
 };
 
 struct DpadConfig {
     enum Mode { Gamepad, Arrows };
     Mode mode{Gamepad};
+    bool suppress_gamepad{false};
 };
 
 struct LayerConfig {

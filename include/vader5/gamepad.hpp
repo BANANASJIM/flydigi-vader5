@@ -112,6 +112,12 @@ class Gamepad {
     uint8_t injected_ext_{0};
     uint16_t prev_injected_buttons_{0};
     uint8_t prev_injected_ext_{0};
+    bool suppress_left_stick_{false};
+    bool suppress_right_stick_{false};
+    bool suppress_dpad_{false};
+    bool prev_suppress_left_stick_{false};
+    bool prev_suppress_right_stick_{false};
+    bool prev_suppress_dpad_{false};
 };
 
 } // namespace vader5

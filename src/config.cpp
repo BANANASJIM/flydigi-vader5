@@ -77,11 +77,17 @@ void parse_stick(const toml::table& tbl, StickConfig& cfg) {
     if (const auto* val = tbl["sensitivity"].as_floating_point()) {
         cfg.sensitivity = static_cast<float>(val->get());
     }
+    if (const auto* val = tbl["suppress_gamepad"].as_boolean()) {
+        cfg.suppress_gamepad = val->get();
+    }
 }
 
 void parse_dpad(const toml::table& tbl, DpadConfig& cfg) {
     if (const auto* val = tbl["mode"].as_string()) {
         cfg.mode = parse_dpad_mode(val->get());
+    }
+    if (const auto* val = tbl["suppress_gamepad"].as_boolean()) {
+        cfg.suppress_gamepad = val->get();
     }
 }
 
@@ -234,8 +240,8 @@ auto Config::load(const std::string& path) -> Result<Config> {
     if (const auto* shift_tbl = tbl["mode_shift"].as_table()) {
         for (const auto& [name, node] : *shift_tbl) {
             if (const auto* sub = node.as_table()) {
-                std::cerr << "[WARN] [mode_shift." << name << "] deprecated, use [layer."
-                          << name << "]\n";
+                std::cerr << "[WARN] [mode_shift." << name << "] deprecated, use [layer." << name
+                          << "]\n";
                 auto layer = parse_layer(std::string(name), *sub);
                 if (layer.trigger.empty()) {
                     layer.trigger = std::string(name);
