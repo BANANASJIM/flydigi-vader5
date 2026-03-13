@@ -69,8 +69,8 @@ class Gamepad {
           redundant_(std::move(redundant)), config_(std::move(cfg)) {}
 
     void process_gyro(const GamepadState& state);
-    void process_mouse_stick(const GamepadState& state);
-    void process_scroll_stick(const GamepadState& state);
+    void process_mouse_sticks(const GamepadState& state);
+    void process_scroll_sticks(const GamepadState& state);
     void process_layer_dpad(const GamepadState& state);
     void process_layer_buttons(const GamepadState& state, const GamepadState& prev);
     void process_base_remaps(const GamepadState& state, const GamepadState& prev);
@@ -96,8 +96,10 @@ class Gamepad {
     float gyro_vel_y_{0.0F};
     float gyro_accum_x_{0.0F};
     float gyro_accum_y_{0.0F};
-    float scroll_accum_v_{0.0F};
-    float scroll_accum_h_{0.0F};
+    float scroll_accum_lv_{0.0F};
+    float scroll_accum_lh_{0.0F};
+    float scroll_accum_rv_{0.0F};
+    float scroll_accum_rh_{0.0F};
     int gyro_stick_x_{0};
     int gyro_stick_y_{0};
     bool dpad_up_{false};

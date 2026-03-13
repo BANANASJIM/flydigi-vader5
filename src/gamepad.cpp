@@ -105,7 +105,8 @@ auto needs_mouse(const Config& cfg) -> bool {
     if (cfg.left_stick.mode == StickConfig::Mouse || cfg.left_stick.mode == StickConfig::Scroll) {
         return true;
     }
-    if (cfg.right_stick.mode == StickConfig::Mouse) {
+    if (cfg.right_stick.mode == StickConfig::Mouse ||
+        cfg.right_stick.mode == StickConfig::Scroll) {
         return true;
     }
     if (cfg.dpad.mode == DpadConfig::Arrows) {
@@ -124,11 +125,10 @@ auto needs_mouse(const Config& cfg) -> bool {
         if (layer.gyro && layer.gyro->mode == GyroConfig::Mouse) {
             return true;
         }
-        if (layer.stick_right && layer.stick_right->mode == StickConfig::Mouse) {
-            return true;
-        }
-        if (layer.stick_left && layer.stick_left->mode == StickConfig::Scroll) {
-            return true;
+        for (const auto& s : {layer.stick_left, layer.stick_right}) {
+            if (s && (s->mode == StickConfig::Mouse || s->mode == StickConfig::Scroll)) {
+                return true;
+            }
         }
         if (layer.dpad && layer.dpad->mode == DpadConfig::Arrows) {
             return true;
@@ -503,66 +503,65 @@ void Gamepad::process_gyro(const GamepadState& state) {
     }
 }
 
-void Gamepad::process_mouse_stick(const GamepadState& state) {
+void Gamepad::process_mouse_sticks(const GamepadState& state) {
     if (!input_) {
         return;
     }
 
-    const auto& cfg = get_effective_stick_right();
-    if (cfg.mode != StickConfig::Mouse) {
-        return;
-    }
+    auto process = [&](const StickConfig& cfg, int sx, int sy) {
+        if (cfg.mode != StickConfig::Mouse) {
+            return;
+        }
+        if (std::abs(sx) < cfg.deadzone) {
+            sx = 0;
+        }
+        if (std::abs(sy) < cfg.deadzone) {
+            sy = 0;
+        }
+        const int dx = static_cast<int>(static_cast<float>(sx) * STICK_SCALE * cfg.sensitivity);
+        const int dy = static_cast<int>(static_cast<float>(sy) * STICK_SCALE * cfg.sensitivity);
+        if (dx != 0 || dy != 0) {
+            input_->move_mouse(dx, dy);
+            [[maybe_unused]] auto r = input_->sync();
+        }
+    };
 
-    int rx = state.right_x;
-    int ry = state.right_y;
-    if (std::abs(rx) < cfg.deadzone) {
-        rx = 0;
-    }
-    if (std::abs(ry) < cfg.deadzone) {
-        ry = 0;
-    }
-
-    const int dx = static_cast<int>(static_cast<float>(rx) * STICK_SCALE * cfg.sensitivity);
-    const int dy = static_cast<int>(static_cast<float>(ry) * STICK_SCALE * cfg.sensitivity);
-
-    if (dx != 0 || dy != 0) {
-        input_->move_mouse(dx, dy);
-        [[maybe_unused]] auto r1 = input_->sync();
-    }
+    process(get_effective_stick_left(), state.left_x, state.left_y);
+    process(get_effective_stick_right(), state.right_x, state.right_y);
 }
 
-void Gamepad::process_scroll_stick(const GamepadState& state) {
+void Gamepad::process_scroll_sticks(const GamepadState& state) {
     if (!input_) {
         return;
     }
 
-    const auto& cfg = get_effective_stick_left();
-    if (cfg.mode != StickConfig::Scroll) {
-        scroll_accum_v_ = scroll_accum_h_ = 0.0F;
-        return;
-    }
+    auto process = [&](const StickConfig& cfg, int sx, int sy, float& av, float& ah) {
+        if (cfg.mode != StickConfig::Scroll) {
+            av = ah = 0.0F;
+            return;
+        }
+        if (std::abs(sx) < cfg.deadzone) {
+            sx = 0;
+        }
+        if (std::abs(sy) < cfg.deadzone) {
+            sy = 0;
+        }
+        av += static_cast<float>(-sy) * SCROLL_SCALE * cfg.sensitivity;
+        ah += static_cast<float>(sx) * SCROLL_SCALE * cfg.sensitivity;
+        const int sv = static_cast<int>(av);
+        const int sh = static_cast<int>(ah);
+        if (sv != 0 || sh != 0) {
+            av -= static_cast<float>(sv);
+            ah -= static_cast<float>(sh);
+            input_->scroll(sv, sh);
+            [[maybe_unused]] auto r = input_->sync();
+        }
+    };
 
-    int lx = state.left_x;
-    int ly = state.left_y;
-    if (std::abs(lx) < cfg.deadzone) {
-        lx = 0;
-    }
-    if (std::abs(ly) < cfg.deadzone) {
-        ly = 0;
-    }
-
-    scroll_accum_v_ += static_cast<float>(-ly) * SCROLL_SCALE * cfg.sensitivity;
-    scroll_accum_h_ += static_cast<float>(lx) * SCROLL_SCALE * cfg.sensitivity;
-
-    const int scroll_v = static_cast<int>(scroll_accum_v_);
-    const int scroll_h = static_cast<int>(scroll_accum_h_);
-
-    if (scroll_v != 0 || scroll_h != 0) {
-        scroll_accum_v_ -= static_cast<float>(scroll_v);
-        scroll_accum_h_ -= static_cast<float>(scroll_h);
-        input_->scroll(scroll_v, scroll_h);
-        [[maybe_unused]] auto r1 = input_->sync();
-    }
+    process(get_effective_stick_left(), state.left_x, state.left_y,
+            scroll_accum_lv_, scroll_accum_lh_);
+    process(get_effective_stick_right(), state.right_x, state.right_y,
+            scroll_accum_rv_, scroll_accum_rh_);
 }
 
 void Gamepad::process_layer_dpad(const GamepadState& state) {
@@ -724,8 +723,8 @@ auto Gamepad::poll() -> Result<void> {
 
         update_tap_hold(*state, prev_state_);
         process_gyro(*state);
-        process_mouse_stick(*state);
-        process_scroll_stick(*state);
+        process_mouse_sticks(*state);
+        process_scroll_sticks(*state);
         process_layer_dpad(*state);
         process_base_remaps(*state, prev_state_);
         process_layer_buttons(*state, prev_state_);
