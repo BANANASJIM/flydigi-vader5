@@ -51,6 +51,11 @@ install_bin() {
 
 install_systemd() {
     info "Installing systemd service (requires sudo)..."
+    if [[ ! -f /etc/vader5/config.toml ]]; then
+        sudo mkdir -p /etc/vader5
+        sudo cp "$PROJECT_DIR/config/config.toml" /etc/vader5/config.toml
+        success "System config created at /etc/vader5/config.toml"
+    fi
     sudo cp -t /etc/systemd/system/ "$SCRIPT_DIR/vader5d@.service"
     sudo cp -t /etc/udev/rules.d/ "$SCRIPT_DIR/99-vader5-systemd.rules"
     sudo systemctl daemon-reload
@@ -66,6 +71,8 @@ uninstall() {
     sudo rm -f /etc/systemd/system/vader5d.service
     sudo rm -f /etc/systemd/system/vader5d@.service
     sudo rm -f /usr/local/bin/vader5d /usr/local/bin/vader5-debug
+    sudo rm -f /etc/vader5/config.toml
+    sudo rmdir /etc/vader5 2>/dev/null || true
     sudo rm -f /etc/udev/rules.d/99-vader5.rules /etc/udev/rules.d/99-vader5-systemd.rules
     sudo udevadm control --reload-rules
     sudo systemctl daemon-reload

@@ -20,9 +20,8 @@ sudo ./build/vader5d
 # Custom config
 sudo ./build/vader5d -c /path/to/config.toml
 
-# Or full install with systemd service
+# Or full install with systemd service (auto-starts via udev)
 ./install/install.sh install
-sudo systemctl enable --now vader5d
 ```
 
 ## How It Works

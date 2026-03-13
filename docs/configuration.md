@@ -4,10 +4,13 @@ vader5d uses TOML configuration files.
 
 ## File Location
 
-```bash
-# Default path (relative to working directory)
-config/config.toml
+The driver searches for config in this order:
+1. `$XDG_CONFIG_HOME/vader5/config.toml`
+2. `~/.config/vader5/config.toml`
+3. `/etc/vader5/config.toml` (systemd service)
+4. `config/config.toml` (relative fallback)
 
+```bash
 # Specify custom path
 sudo ./build/vader5d -c /path/to/config.toml
 sudo ./build/vader5d --config /path/to/config.toml
