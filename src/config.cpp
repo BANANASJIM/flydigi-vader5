@@ -5,6 +5,8 @@
 #include <linux/input-event-codes.h>
 #include <toml++/toml.hpp>
 
+#include <cstdlib>
+#include <filesystem>
 #include <iostream>
 
 namespace vader5 {
@@ -184,11 +186,23 @@ auto parse_remap_target(std::string_view value) -> std::optional<RemapTarget> {
 }
 
 auto Config::default_path() -> std::string {
-    if (const char* home = std::getenv("HOME")) {
-        auto user_path = std::string(home) + "/.config/vader5/config.toml";
-        if (std::ifstream(user_path).good()) {
-            return user_path;
+    namespace fs = std::filesystem;
+
+    std::string base;
+    if (const char* xdg = std::getenv("XDG_CONFIG_HOME")) {
+        base = xdg;
+    } else if (const char* home = std::getenv("HOME")) {
+        base = std::string(home) + "/.config";
+    }
+
+    if (!base.empty()) {
+        auto path = base + "/vader5/config.toml";
+        if (fs::exists(path)) {
+            return path;
         }
+    }
+    if (fs::exists("/etc/vader5/config.toml")) {
+        return "/etc/vader5/config.toml";
     }
     return "config/config.toml";
 }
