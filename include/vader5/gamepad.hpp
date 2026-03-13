@@ -112,16 +112,13 @@ class Gamepad {
     uint8_t injected_ext_{0};
     uint16_t prev_injected_buttons_{0};
     uint8_t prev_injected_ext_{0};
-    bool suppress_left_stick_{false};
-    bool suppress_right_stick_{false};
-    bool suppress_dpad_{false};
-    bool suppress_left_trigger_{false};
-    bool suppress_right_trigger_{false};
-    bool prev_suppress_left_stick_{false};
-    bool prev_suppress_right_stick_{false};
-    bool prev_suppress_dpad_{false};
-    bool prev_suppress_left_trigger_{false};
-    bool prev_suppress_right_trigger_{false};
+
+    struct SuppressState {
+        bool left_stick{}, right_stick{}, dpad{}, left_trigger{}, right_trigger{};
+        void apply(GamepadState& s) const;
+    };
+    SuppressState suppress_{};
+    SuppressState prev_suppress_{};
 };
 
 } // namespace vader5
