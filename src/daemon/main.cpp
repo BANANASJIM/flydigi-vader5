@@ -8,7 +8,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstring>
-#include <format>
+#include <iomanip>
 #include <iostream>
 #include <span>
 #include <thread>
@@ -42,13 +42,14 @@ auto main(int argc, char* argv[]) -> int {
     vader5::Config cfg;
     if (auto loaded = vader5::Config::load(config_path); loaded) {
         cfg = *loaded;
-        std::cout << std::format("vader5d: Loaded config from {}\n", config_path);
+        std::cout << "vader5d: Loaded config from " << config_path << "\n";
     } else {
-        std::cout << std::format("vader5d: No config at {}, using defaults\n", config_path);
+        std::cout << "vader5d: No config at " << config_path << ", using defaults\n";
     }
 
-    std::cout << std::format("vader5d: Waiting for Vader 5 Pro (VID:{:04x} PID:{:04x})...\n",
-                             vader5::VENDOR_ID, vader5::PRODUCT_ID);
+    std::cout << "vader5d: Waiting for Vader 5 Pro (VID:"
+              << std::hex << std::setfill('0') << std::setw(4) << vader5::VENDOR_ID
+              << " PID:" << std::setw(4) << vader5::PRODUCT_ID << std::dec << ")...\n";
 
     struct sigaction sa {};
     sa.sa_handler = handle_signal;
@@ -88,7 +89,7 @@ auto main(int argc, char* argv[]) -> int {
                 if (err == EINTR) {
                     continue;
                 }
-                std::cerr << std::format("vader5d: poll error: {}\n", std::strerror(err));
+                std::cerr << "vader5d: poll error: " << std::strerror(err) << "\n";
                 break;
             }
 
@@ -103,7 +104,7 @@ auto main(int argc, char* argv[]) -> int {
                         std::cout << "vader5d: Device disconnected\n";
                         break;
                     }
-                    std::cerr << std::format("vader5d: Read error: {}\n", ec.message());
+                    std::cerr << "vader5d: Read error: " << ec.message() << "\n";
                 }
             }
 

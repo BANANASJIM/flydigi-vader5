@@ -232,7 +232,7 @@ Element render_trigger(const std::string& name, uint8_t value) {
     return hbox({
         text(name + " ") | bold,
         gaugeRight(ratio) | size(WIDTH, EQUAL, TRIGGER_BAR_WIDTH) | color(Color::Green),
-        text(" " + std::to_string(value)),
+        text(std::string(" ") += std::to_string(value)),
     });
 }
 
@@ -436,7 +436,7 @@ Element render_imu(const ImuData& imu, bool test_mode) {
         std::array<char, 16> buf{};
         (void)std::snprintf(buf.data(), buf.size(), "%+6d", val);
         return hbox(
-            {text(name + ": "), bar(val, RANGE, neg, pos), text(" " + std::string(buf.data()))});
+            {text(name + ": "), bar(val, RANGE, neg, pos), text(std::string(" ") += buf.data())});
     };
 
     return vbox({
