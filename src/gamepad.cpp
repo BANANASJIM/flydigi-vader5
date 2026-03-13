@@ -802,6 +802,8 @@ auto Gamepad::poll() -> Result<void> {
         suppress_left_stick_ = false;
         suppress_right_stick_ = false;
         suppress_dpad_ = false;
+        suppress_left_trigger_ = false;
+        suppress_right_trigger_ = false;
 
         update_tap_hold(*state, prev_state_);
         process_gyro(*state);
@@ -810,6 +812,16 @@ auto Gamepad::poll() -> Result<void> {
         process_layer_dpad(*state);
         process_base_remaps(*state, prev_state_);
         process_layer_buttons(*state, prev_state_);
+
+        const auto* layer = get_active_layer();
+        if (layer != nullptr) {
+            if (layer->remap.contains("LT")) {
+                suppress_left_trigger_ = true;
+            }
+            if (layer->remap.contains("RT")) {
+                suppress_right_trigger_ = true;
+            }
+        }
 
         auto emit_state = *state;
         emit_state.buttons = (emit_state.buttons & ~suppressed_buttons_) | injected_buttons_;
@@ -825,6 +837,12 @@ auto Gamepad::poll() -> Result<void> {
         }
         if (suppress_dpad_) {
             emit_state.dpad = DPAD_NONE;
+        }
+        if (suppress_left_trigger_) {
+            emit_state.left_trigger = 0;
+        }
+        if (suppress_right_trigger_) {
+            emit_state.right_trigger = 0;
         }
 
         if (get_effective_gyro().mode == GyroConfig::Joystick) {
@@ -848,6 +866,12 @@ auto Gamepad::poll() -> Result<void> {
         if (prev_suppress_dpad_) {
             emit_prev.dpad = DPAD_NONE;
         }
+        if (prev_suppress_left_trigger_) {
+            emit_prev.left_trigger = 0;
+        }
+        if (prev_suppress_right_trigger_) {
+            emit_prev.right_trigger = 0;
+        }
 
         auto result = uinput_.emit(emit_state, emit_prev);
         prev_state_ = *state;
@@ -858,6 +882,8 @@ auto Gamepad::poll() -> Result<void> {
         prev_suppress_left_stick_ = suppress_left_stick_;
         prev_suppress_right_stick_ = suppress_right_stick_;
         prev_suppress_dpad_ = suppress_dpad_;
+        prev_suppress_left_trigger_ = suppress_left_trigger_;
+        prev_suppress_right_trigger_ = suppress_right_trigger_;
         return result;
     }
     return {};

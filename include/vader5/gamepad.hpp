@@ -115,9 +115,13 @@ class Gamepad {
     bool suppress_left_stick_{false};
     bool suppress_right_stick_{false};
     bool suppress_dpad_{false};
+    bool suppress_left_trigger_{false};
+    bool suppress_right_trigger_{false};
     bool prev_suppress_left_stick_{false};
     bool prev_suppress_right_stick_{false};
     bool prev_suppress_dpad_{false};
+    bool prev_suppress_left_trigger_{false};
+    bool prev_suppress_right_trigger_{false};
 };
 
 } // namespace vader5
