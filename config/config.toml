@@ -22,14 +22,14 @@ tap = "mouse_side"          # KEY_*, mouse_left/right/middle/side/extra
 hold_timeout = 200          # ms before layer activates
 gyro = { mode = "mouse", sensitivity = 2.0 }
 stick_left = { mode = "scroll" }   # gamepad / mouse / scroll
-stick_right = { mode = "mouse", sensitivity = 1.0 }  # gamepad / mouse
-dpad = { mode = "arrows" }  # gamepad / arrows / scroll
+stick_right = { mode = "mouse", sensitivity = 1.0, suppress_gamepad = true }
+dpad = { mode = "arrows", suppress_gamepad = true }
 remap = { RB = "mouse_left", RT = "mouse_right", RM = "mouse_middle", A = "KEY_LEFTMETA" }
 
 # Hold RM for stick mouse + arrows
 [layer.mouse]
 trigger = "RM"
 hold_timeout = 150
-stick_right = { mode = "mouse", sensitivity = 1.5 }
-dpad = { mode = "arrows" }
+stick_right = { mode = "mouse", sensitivity = 1.5, suppress_gamepad = true }
+dpad = { mode = "arrows", suppress_gamepad = true }
 remap = { A = "mouse_left", B = "mouse_right" }
