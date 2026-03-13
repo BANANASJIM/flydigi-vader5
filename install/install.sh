@@ -71,7 +71,8 @@ uninstall() {
     sudo rm -f /etc/systemd/system/vader5d.service
     sudo rm -f /etc/systemd/system/vader5d@.service
     sudo rm -f /usr/local/bin/vader5d /usr/local/bin/vader5-debug
-    sudo rm -rf /etc/vader5
+    sudo rm -f /etc/vader5/config.toml
+    sudo rmdir /etc/vader5 2>/dev/null || true
     sudo rm -f /etc/udev/rules.d/99-vader5.rules /etc/udev/rules.d/99-vader5-systemd.rules
     sudo udevadm control --reload-rules
     sudo systemctl daemon-reload

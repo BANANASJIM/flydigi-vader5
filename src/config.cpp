@@ -186,22 +186,20 @@ auto parse_remap_target(std::string_view value) -> std::optional<RemapTarget> {
 }
 
 auto Config::default_path() -> std::string {
-    namespace fs = std::filesystem;
+    auto check = [](const std::string& dir) -> std::string {
+        auto path = dir + "/vader5/config.toml";
+        if (std::filesystem::exists(path)) { return path; }
+        return {};
+    };
 
-    std::string base;
-    if (const char* xdg = std::getenv("XDG_CONFIG_HOME")) {
-        base = xdg;
-    } else if (const char* home = std::getenv("HOME")) {
-        base = std::string(home) + "/.config";
+    if (const char* xdg = std::getenv("XDG_CONFIG_HOME");
+        xdg != nullptr && *xdg != '\0') {
+        if (auto p = check(xdg); !p.empty()) { return p; }
     }
-
-    if (!base.empty()) {
-        auto path = base + "/vader5/config.toml";
-        if (fs::exists(path)) {
-            return path;
-        }
+    if (const char* home = std::getenv("HOME")) {
+        if (auto p = check(std::string(home) + "/.config"); !p.empty()) { return p; }
     }
-    if (fs::exists("/etc/vader5/config.toml")) {
+    if (std::filesystem::exists("/etc/vader5/config.toml")) {
         return "/etc/vader5/config.toml";
     }
     return "config/config.toml";
