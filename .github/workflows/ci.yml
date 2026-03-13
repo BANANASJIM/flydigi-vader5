@@ -38,3 +38,23 @@ jobs:
       - name: Build
         run: cmake --build build
 
+      - name: Test
+        run: ./build/test-remap && ./build/test-uinput-elite && ./build/test-debug-iface
+
+  build-debian12:
+    runs-on: ubuntu-latest
+    container: debian:12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: apt-get update && apt-get install -y cmake g++ ninja-build git
+
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_CLANG_TIDY=OFF
+          cmake --build build
+
+      - name: Test
+        run: ./build/test-remap && ./build/test-uinput-elite && ./build/test-debug-iface
+
