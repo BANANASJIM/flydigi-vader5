@@ -184,6 +184,12 @@ auto parse_remap_target(std::string_view value) -> std::optional<RemapTarget> {
 }
 
 auto Config::default_path() -> std::string {
+    if (const char* home = std::getenv("HOME")) {
+        auto user_path = std::string(home) + "/.config/vader5/config.toml";
+        if (std::ifstream(user_path).good()) {
+            return user_path;
+        }
+    }
     return "config/config.toml";
 }
 
