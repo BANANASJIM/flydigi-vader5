@@ -119,6 +119,9 @@ class Gamepad {
     };
     SuppressState suppress_{};
     SuppressState prev_suppress_{};
+
+    static constexpr auto RUMBLE_MIN_INTERVAL = std::chrono::milliseconds(10);
+    std::chrono::steady_clock::time_point last_rumble_time_;
 };
 
 } // namespace vader5

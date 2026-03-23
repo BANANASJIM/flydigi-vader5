@@ -178,12 +178,14 @@ auto block_redundant_input(const Hidraw& hidraw) -> Result<UniqueFd> {
     }
     // We want to find the now-redundant input device that identifies this as a generic controller;
     // we do this by finding the input event node that's on the same usb device as our hidraw node.
-    // path format is: usb-0000:00:14.0-4/input1
-    // Our hidraw interface is 1, the generic one is 0, so look that one up.
-    if (!hidraw_path->ends_with("/input1")) {
+    // path format is: usb-0000:00:14.0-4/inputN
+    // Our hidraw is on one interface, the generic one is on interface 0.
+    auto slash = hidraw_path->rfind('/');
+    if (slash == std::string::npos || !hidraw_path->substr(slash).starts_with("/input")) {
         return std::unexpected(std::make_error_code(std::errc::invalid_argument));
     }
-    hidraw_path->back() = '0';
+    hidraw_path->erase(slash);
+    hidraw_path->append("/input0");
 
     auto input_path = find_input_device(*hidraw_path);
     if (!input_path) {
@@ -811,6 +813,12 @@ auto Gamepad::poll() -> Result<void> {
 }
 
 auto Gamepad::send_rumble(uint8_t left, uint8_t right) -> bool {
+    auto now = std::chrono::steady_clock::now();
+    if (now - last_rumble_time_ < RUMBLE_MIN_INTERVAL) {
+        return true;
+    }
+    last_rumble_time_ = now;
+
     std::array<uint8_t, PKT_SIZE> pkt{};
     pkt.at(0) = MAGIC_5A;
     pkt.at(1) = MAGIC_A5;
@@ -818,6 +826,13 @@ auto Gamepad::send_rumble(uint8_t left, uint8_t right) -> bool {
     pkt.at(3) = 0x06;
     pkt.at(4) = left;
     pkt.at(5) = right;
+
+    uint8_t checksum = 0;
+    for (size_t i = 2; i < 2 + 6; ++i) {
+        checksum += pkt.at(i);
+    }
+    pkt.at(8) = checksum;
+
     return hidraw_.write(pkt).has_value();
 }
 
