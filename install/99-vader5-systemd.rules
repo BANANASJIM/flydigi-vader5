@@ -1,4 +1,4 @@
 # Populate envs on hidraw device; we can't match in the later rule with attrs on two different parent devices.
-ACTION=="add", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37d7", ATTRS{idProduct}=="2401", IMPORT{builtin}="usb_id"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="37d7", ATTRS{idProduct}=="2401", IMPORT{builtin}="usb_id"
 # Expose config interface to systemd
-ACTION=="add", SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="37d7", ENV{ID_MODEL_ID}=="2401", ATTRS{bInterfaceNumber}=="01", TAG+="systemd", ENV{SYSTEMD_WANTS}+="vader5d@%k.service"
+SUBSYSTEM=="hidraw", ENV{ID_VENDOR_ID}=="37d7", ENV{ID_MODEL_ID}=="2401", ATTRS{bInterfaceNumber}=="01", TAG+="systemd", ENV{SYSTEMD_WANTS}+="vader5d@%k.service"
