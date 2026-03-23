@@ -138,14 +138,18 @@ lsusb | grep 37d7
 sudo ./build/vader5-debug
 ```
 
-## Roadmap
+## padctl — Universal Successor
 
-- [ ] Kernel driver (hid-flydigi) for native support
-- [ ] LED/lighting control
-- [ ] Onboard profile configuration (write to controller)
-- [ ] Bluetooth support
-- [ ] Trigger deadzone and curve settings
-- [ ] Macro support
+This project has evolved into [**padctl**](https://github.com/BANANASJIM/padctl) — a universal HID gamepad daemon supporting **12 devices** across 8 vendors (Sony, Nintendo, Microsoft, Valve, 8BitDo, Flydigi, HORI, Lenovo) with the same declarative TOML config approach.
+
+padctl includes everything from this driver plus:
+- Multi-device hotplug with automatic detection
+- WASM plugin system for complex protocols
+- Force feedback passthrough
+- Full systemd integration with install/uninstall
+- Comprehensive [documentation](https://bananasjim.github.io/padctl/)
+
+**New users should use padctl instead.** This repo remains for reference.
 
 ## License
 
