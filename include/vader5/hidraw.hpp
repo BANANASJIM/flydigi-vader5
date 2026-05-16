@@ -6,6 +6,9 @@
 #include <span>
 #include <string>
 
+// Forward declaration
+struct hid_device_;
+
 namespace vader5 {
 
 class Hidraw {
@@ -18,8 +21,10 @@ class Hidraw {
     Hidraw(const Hidraw&) = delete;
     auto operator=(const Hidraw&) -> Hidraw& = delete;
 
+    // Returns a dummy fd for compatibility. The real I/O goes through hidapi.
+    // This fd should NOT be used for read/write/poll - only for existence checks.
     [[nodiscard]] auto fd() const noexcept -> int {
-        return fd_;
+        return device_ ? 0 : -1;
     }
     [[nodiscard]] auto phys() const -> Result<std::string>;
     [[nodiscard]] auto read(std::span<uint8_t> buf) const -> Result<size_t>;
@@ -28,8 +33,8 @@ class Hidraw {
         -> std::optional<GamepadState>;
 
   private:
-    explicit Hidraw(int file_descriptor) : fd_(file_descriptor) {}
-    int fd_{-1};
+    explicit Hidraw(struct hid_device_* device) : device_(device) {}
+    struct hid_device_* device_{nullptr};
 
     [[nodiscard]] static auto parse_report_24g(std::span<const uint8_t> data)
         -> std::optional<GamepadState>;

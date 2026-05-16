@@ -15,6 +15,11 @@
 
 #include <poll.h>
 
+#ifdef VADER5_USE_HIDAPI
+#include <sys/timerfd.h>
+#include <unistd.h>
+#endif
+
 namespace {
 std::atomic<bool> g_running{true};
 
@@ -64,6 +69,21 @@ auto main(int argc, char* argv[]) -> int {
     sigaddset(&block_mask, SIGTERM);
     sigaddset(&block_mask, SIGINT);
 
+#ifdef VADER5_USE_HIDAPI
+    // Timerfd-based polling loop: hidapi does not expose a pollable fd,
+    // so we use a 1ms timerfd to wake the loop periodically and call
+    // hid_read_timeout() which internally does its own short timeout.
+    int timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    if (timer_fd < 0) {
+        std::cerr << "vader5d: Failed to create timerfd: " << std::strerror(errno) << "\n";
+        return 1;
+    }
+    itimerspec timer_spec{};
+    timer_spec.it_value.tv_nsec = 1000000;     // 1ms initial
+    timer_spec.it_interval.tv_nsec = 1000000;  // 1ms periodic
+    timerfd_settime(timer_fd, 0, &timer_spec, nullptr);
+#endif
+
     while (g_running.load(std::memory_order_relaxed)) {
         auto gamepad = vader5::Gamepad::open(cfg, device_name);
         if (!gamepad) {
@@ -72,13 +92,64 @@ auto main(int argc, char* argv[]) -> int {
         }
 
         std::cout << "vader5d: Device connected, running...\n";
+
+#ifdef VADER5_USE_HIDAPI
+        // ---- hidapi backend ----
+        int ff_fd = gamepad->ff_fd();
+
+        sigset_t old_mask;
+        sigprocmask(SIG_BLOCK, &block_mask, &old_mask);
+
+        while (g_running.load(std::memory_order_relaxed)) {
+            auto result = gamepad->poll();
+            if (!result) {
+                auto ec = result.error();
+                if (ec == std::errc::resource_unavailable_try_again) {
+                    // No data available, normal
+                } else if (ec == std::errc::no_such_device || ec == std::errc::io_error) {
+                    std::cout << "vader5d: Device disconnected\n";
+                    break;
+                } else {
+                    std::cerr << "vader5d: Read error: " << ec.message() << "\n";
+                }
+            }
+
+            gamepad->poll_ff();
+
+            std::array<pollfd, 2> pfds{};
+            pfds[0].fd = timer_fd;
+            pfds[0].events = POLLIN;
+            int nfds = 1;
+
+            if (ff_fd >= 0) {
+                pfds[1].fd = ff_fd;
+                pfds[1].events = POLLIN;
+                nfds = 2;
+            }
+
+            const int ret = ppoll(pfds.data(), nfds, nullptr, &empty_mask);
+            if (ret < 0) {
+                const int err = errno;
+                if (err == EINTR) {
+                    continue;
+                }
+                std::cerr << "vader5d: poll error: " << std::strerror(err) << "\n";
+                break;
+            }
+
+            if (pfds[0].revents & POLLIN) {
+                uint64_t expirations;
+                ::read(timer_fd, &expirations, sizeof(expirations));
+            }
+        }
+        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+#else
+        // ---- hidraw backend (original) ----
         std::array<pollfd, 2> pfds{{
             {.fd = gamepad->fd(), .events = POLLIN, .revents = 0},
             {.fd = gamepad->ff_fd(), .events = POLLIN, .revents = 0},
         }};
 
-        // Block signals except when we're polling, which allows an indefinite poll without a race
-        // where we may miss a signal
         sigset_t old_mask;
         sigprocmask(SIG_BLOCK, &block_mask, &old_mask);
 
@@ -118,10 +189,14 @@ auto main(int argc, char* argv[]) -> int {
             }
         }
         sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+#endif
 
         std::cout << "vader5d: Waiting for reconnection...\n";
     }
 
+#ifdef VADER5_USE_HIDAPI
+    ::close(timer_fd);
+#endif
     std::cout << "vader5d: Shutting down\n";
     return 0;
 }
