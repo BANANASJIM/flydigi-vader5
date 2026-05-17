@@ -10,6 +10,8 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <span>
 #include <thread>
 
@@ -84,15 +86,19 @@ auto main(int argc, char* argv[]) -> int {
     timerfd_settime(timer_fd, 0, &timer_spec, nullptr);
 #endif
 
-    while (g_running.load(std::memory_order_relaxed)) {
-        auto gamepad = vader5::Gamepad::open(cfg, device_name);
-        if (!gamepad) {
+    // Create gamepad once to keep uinput device stable across reconnections
+    std::unique_ptr<vader5::Gamepad> gamepad;
+    while (g_running.load(std::memory_order_relaxed) && !gamepad) {
+        auto gp = vader5::Gamepad::open(cfg, device_name);
+        if (gp) {
+            gamepad = std::make_unique<vader5::Gamepad>(std::move(*gp));
+            std::cout << "vader5d: Device connected, running..." << std::endl;
+        } else {
             std::this_thread::sleep_for(RETRY_INTERVAL);
-            continue;
         }
+    }
 
-        std::cout << "vader5d: Device connected, running...\n";
-
+    while (g_running.load(std::memory_order_relaxed) && gamepad) {
 #ifdef VADER5_USE_HIDAPI
         // ---- hidapi backend ----
         int ff_fd = gamepad->ff_fd();
@@ -107,7 +113,7 @@ auto main(int argc, char* argv[]) -> int {
                 if (ec == std::errc::resource_unavailable_try_again) {
                     // No data available, normal
                 } else if (ec == std::errc::no_such_device || ec == std::errc::io_error) {
-                    std::cout << "vader5d: Device disconnected\n";
+                    std::cout << "vader5d: Device disconnected, reconnecting...\n";
                     break;
                 } else {
                     std::cerr << "vader5d: Read error: " << ec.message() << "\n";
@@ -143,6 +149,19 @@ auto main(int argc, char* argv[]) -> int {
             }
         }
         sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+
+        // Reconnect hidapi while keeping uinput alive
+        if (g_running.load(std::memory_order_relaxed)) {
+            std::cout << "vader5d: Waiting for device to reconnect...\n";
+            while (g_running.load(std::memory_order_relaxed)) {
+                auto rc = gamepad->reconnect_hid();
+                if (rc) {
+                    std::cout << "vader5d: Device reconnected, running...\n";
+                    break;
+                }
+                std::this_thread::sleep_for(RETRY_INTERVAL);
+            }
+        }
 #else
         // ---- hidraw backend (original) ----
         std::array<pollfd, 2> pfds{{
@@ -189,9 +208,23 @@ auto main(int argc, char* argv[]) -> int {
             }
         }
         sigprocmask(SIG_SETMASK, &old_mask, nullptr);
-#endif
 
-        std::cout << "vader5d: Waiting for reconnection...\n";
+        // hidraw backend: reconnect gamepad (destroys and recreates uinput)
+        if (g_running.load(std::memory_order_relaxed)) {
+            std::cout << "vader5d: Waiting for device to reconnect...\n";
+            // Gamepad destructor will destroy uinput; loop restarts from top
+            gamepad.reset();
+            while (g_running.load(std::memory_order_relaxed) && !gamepad) {
+                auto gp = vader5::Gamepad::open(cfg, device_name);
+                if (gp) {
+                    gamepad = std::make_unique<vader5::Gamepad>(std::move(*gp));
+                    std::cout << "vader5d: Device reconnected, running...\n";
+                } else {
+                    std::this_thread::sleep_for(RETRY_INTERVAL);
+                }
+            }
+        }
+#endif
     }
 
 #ifdef VADER5_USE_HIDAPI

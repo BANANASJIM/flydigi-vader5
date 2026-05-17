@@ -45,9 +45,26 @@ auto Hidraw::open(uint16_t vid, uint16_t pid, int iface,
         // Open by path (e.g., "hidraw0")
         device = hid_open_path(device_name.c_str());
     } else {
-        // Enumerate and find matching interface
+        // Try hid_open first (works when kernel driver is not attached)
         device = hid_open(vid, pid, nullptr);
-        if (device && iface >= 0) {
+        if (!device) {
+            // hid_open failed (kernel driver attached). Fallback to path-based open.
+            struct hid_device_info* devs = hid_enumerate(vid, pid);
+            struct hid_device_info* cur = devs;
+            std::string target_path;
+            while (cur) {
+                if (iface < 0 || cur->interface_number == iface) {
+                    target_path = cur->path;
+                    break;
+                }
+                cur = cur->next;
+            }
+            hid_free_enumeration(devs);
+            if (!target_path.empty()) {
+                device = hid_open_path(target_path.c_str());
+            }
+        } else if (iface >= 0) {
+            // hid_open succeeded but wrong interface; reopen by path
             struct hid_device_info* devs = hid_enumerate(vid, pid);
             struct hid_device_info* cur = devs;
             std::string target_path;
@@ -59,7 +76,6 @@ auto Hidraw::open(uint16_t vid, uint16_t pid, int iface,
                 cur = cur->next;
             }
             hid_free_enumeration(devs);
-
             if (!target_path.empty()) {
                 hid_close(device);
                 device = hid_open_path(target_path.c_str());
@@ -83,6 +99,38 @@ Hidraw::~Hidraw() {
         hid_close(device_);
         hid_exit();
     }
+}
+
+auto Hidraw::reconnect(uint16_t vid, uint16_t pid, int iface) -> Result<void> {
+    // Close existing device
+    if (device_) {
+        hid_close(device_);
+        device_ = nullptr;
+    }
+    // Re-open
+    hid_device* device = hid_open(vid, pid, nullptr);
+    if (!device) {
+        struct hid_device_info* devs = hid_enumerate(vid, pid);
+        struct hid_device_info* cur = devs;
+        std::string target_path;
+        while (cur) {
+            if (iface < 0 || cur->interface_number == iface) {
+                target_path = cur->path;
+                break;
+            }
+            cur = cur->next;
+        }
+        hid_free_enumeration(devs);
+        if (!target_path.empty()) {
+            device = hid_open_path(target_path.c_str());
+        }
+    }
+    if (!device) {
+        return std::unexpected(std::make_error_code(std::errc::no_such_device));
+    }
+    hid_set_nonblocking(device, 1);
+    device_ = device;
+    return {};
 }
 
 Hidraw::Hidraw(Hidraw&& other) noexcept : device_(other.device_) {
