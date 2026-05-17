@@ -55,6 +55,9 @@ class Gamepad {
     auto poll() -> Result<void>;
     void poll_ff();
     auto send_rumble(uint8_t left, uint8_t right) -> bool;
+    auto reconnect_hid() -> Result<void> {
+        return hidraw_.reconnect(VENDOR_ID, PRODUCT_ID, 2);
+    }
     [[nodiscard]] auto fd() const noexcept -> int {
         return hidraw_.fd();
     }

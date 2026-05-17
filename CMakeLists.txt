@@ -25,7 +25,10 @@ set(FTXUI_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(tomlplusplus ftxui)
 
+# ---- Options ----
+
 option(ENABLE_CLANG_TIDY "Enable clang-tidy" ON)
+option(USE_HIDAPI "Use hidapi (libusb backend) instead of Linux hidraw" OFF)
 
 if(ENABLE_CLANG_TIDY)
     find_program(CLANG_TIDY clang-tidy)
@@ -39,24 +42,60 @@ endif()
 
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
+# ---- Backend selection ----
+
+if(USE_HIDAPI)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(HIDAPI REQUIRED hidapi-libusb)
+    add_compile_definitions(VADER5_USE_HIDAPI)
+
+    set(HIDRAW_SOURCES src/hidapi_device.cpp)
+    set(HIDRAW_LIBS ${HIDAPI_LIBRARIES})
+    set(HIDRAW_INCLUDE_DIRS ${HIDAPI_INCLUDE_DIRS})
+    set(HIDRAW_LIBRARY_DIRS ${HIDAPI_LIBRARY_DIRS})
+    set(HIDRAW_CFLAGS ${HIDAPI_CFLAGS_OTHER})
+
+    message(STATUS "Using hidapi (libusb) backend for HID communication")
+    message(STATUS "  hidapi include: ${HIDAPI_INCLUDE_DIRS}")
+    message(STATUS "  hidapi libs:    ${HIDAPI_LIBRARIES}")
+else()
+    set(HIDRAW_SOURCES src/hidraw.cpp)
+    set(HIDRAW_LIBS "")
+    set(HIDRAW_INCLUDE_DIRS "")
+    set(HIDRAW_LIBRARY_DIRS "")
+    set(HIDRAW_CFLAGS "")
+
+    message(STATUS "Using Linux hidraw backend for HID communication")
+endif()
+
+# ---- Targets ----
+
+# vader5d daemon
 add_executable(vader5d
     src/daemon/main.cpp
-    src/hidraw.cpp
+    ${HIDRAW_SOURCES}
     src/uinput.cpp
     src/gamepad.cpp
     src/config.cpp
     src/keycodes.cpp
     src/mouse.cpp
 )
-target_include_directories(vader5d PRIVATE include)
-target_link_libraries(vader5d PRIVATE tomlplusplus::tomlplusplus)
+target_include_directories(vader5d PRIVATE include ${HIDRAW_INCLUDE_DIRS})
+target_link_libraries(vader5d PRIVATE tomlplusplus::tomlplusplus ${HIDRAW_LIBS})
+target_link_directories(vader5d PRIVATE ${HIDRAW_LIBRARY_DIRS})
+target_compile_options(vader5d PRIVATE ${HIDRAW_CFLAGS})
 
+# vader5-debug TUI tool
 add_executable(vader5-debug
     src/tools/debug.cpp
-    src/hidraw.cpp
+    ${HIDRAW_SOURCES}
 )
-target_include_directories(vader5-debug PRIVATE include)
-target_link_libraries(vader5-debug PRIVATE ftxui::screen ftxui::dom ftxui::component)
+target_include_directories(vader5-debug PRIVATE include ${HIDRAW_INCLUDE_DIRS})
+target_link_libraries(vader5-debug PRIVATE ftxui::screen ftxui::dom ftxui::component ${HIDRAW_LIBS})
+target_link_directories(vader5-debug PRIVATE ${HIDRAW_LIBRARY_DIRS})
+target_compile_options(vader5-debug PRIVATE ${HIDRAW_CFLAGS})
+
+# ---- Test targets ----
 
 add_executable(test-debug-iface
     src/tools/test_debug_iface.cpp
